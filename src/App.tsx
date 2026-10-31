@@ -9,6 +9,7 @@ import { ChatQuView } from './components/chatqu/ChatQuView';
 import { MuamalahQuView } from './components/muamalahqu/MuamalahQuView';
 import { AreaQuView } from './components/areaqu/AreaQuView';
 import { ModularQuView } from './components/modularqu/ModularQuView';
+import { BantuanView } from './components/bantuan/BantuanView';
 
 import {
   TableItem,
@@ -20,7 +21,7 @@ import {
 } from './types';
 import { StorageService } from './services/storage';
 
-type AppScreen = 'warga' | 'rtqu' | 'siagaqu' | 'chatqu' | 'muamalahqu' | 'areaqu' | 'usahaqu' | 'modularqu' | 'empty_module';
+type AppScreen = 'warga' | 'rtqu' | 'siagaqu' | 'chatqu' | 'muamalahqu' | 'areaqu' | 'usahaqu' | 'modularqu' | 'bantuan' | 'empty_module';
 
 export default function App() {
   // Screen Navigation State
@@ -137,6 +138,12 @@ export default function App() {
     showNotification('Membuka UsahaQu: POS ModularQu Voice AI');
   };
 
+  const handleOpenBantuan = () => {
+    setCurrentScreen('bantuan');
+    window.history.pushState({ screen: 'bantuan' }, '', '#bantuan');
+    showNotification('Membuka UsahaQu Smart Care & Pusat Bantuan');
+  };
+
   const handleOpenChatQu = () => {
     setCurrentScreen('chatqu');
     window.history.pushState({ screen: 'chatqu' }, '', '#chatqu');
@@ -193,6 +200,7 @@ export default function App() {
           onOpenSiagaQu={handleOpenSiagaQu}
           onOpenUsahaQu={handleOpenUsahaQu}
           onOpenModularQu={handleOpenModularQu}
+          onOpenBantuan={handleOpenBantuan}
           onOpenChatQu={handleOpenChatQu}
           onOpenMuamalahQu={handleOpenMuamalahQu}
           onOpenAreaQu={handleOpenAreaQu}
@@ -255,6 +263,7 @@ export default function App() {
         <UsahaQuView
           onBackToWarga={handleBackToWarga}
           onOpenModularQu={handleOpenModularQu}
+          onOpenBantuan={handleOpenBantuan}
           tables={tables}
           setTables={setTables}
           menuList={menuList}
@@ -278,11 +287,20 @@ export default function App() {
         <ModularQuView
           onBackToWarga={handleBackToWarga}
           onOpenBaksoQu={handleOpenUsahaQu}
+          onOpenBantuan={handleOpenBantuan}
           showNotification={showNotification}
         />
       )}
 
-      {/* Screen 9: Empty Modules (Setting, QRIS, etc.) */}
+      {/* Screen 9: UsahaQu Smart Care & Pusat Bantuan */}
+      {currentScreen === 'bantuan' && (
+        <BantuanView
+          onBackToWarga={handleBackToWarga}
+          showNotification={showNotification}
+        />
+      )}
+
+      {/* Screen 10: Empty Modules (Setting, QRIS, etc.) */}
       {currentScreen === 'empty_module' && (
         <EmptyModuleView
           moduleId={selectedEmptyModule}

@@ -134,3 +134,18 @@ export interface ModularProfile {
   phone: string;
   footer: string;
 }
+
+// ==========================================
+// PUSAT BANTUAN & SMART CARE TICKET TYPES
+// ==========================================
+export interface SupportTicket {
+  id: string;
+  time: string;
+  complaint: string;
+  device: string;
+  severity: 'High Severity' | 'Medium' | 'Low' | 'Auto Analyzed';
+  status: 'open' | 'resolved';
+  module: string;
+  detectedError: string;
+  prompt: string;
+}

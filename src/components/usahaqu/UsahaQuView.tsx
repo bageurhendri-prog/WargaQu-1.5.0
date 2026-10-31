@@ -6,7 +6,8 @@ import {
   Printer,
   Sparkles,
   Store,
-  ChevronRight
+  ChevronRight,
+  Headphones
 } from 'lucide-react';
 
 import { HeaderBar } from '../HeaderBar';
@@ -39,6 +40,7 @@ import { PrinterService } from '../../services/printer';
 interface UsahaQuViewProps {
   onBackToWarga: () => void;
   onOpenModularQu?: () => void;
+  onOpenBantuan?: () => void;
   tables: TableItem[];
   setTables: React.Dispatch<React.SetStateAction<TableItem[]>>;
   menuList: MenuItem[];
@@ -59,6 +61,7 @@ interface UsahaQuViewProps {
 export const UsahaQuView: React.FC<UsahaQuViewProps> = ({
   onBackToWarga,
   onOpenModularQu,
+  onOpenBantuan,
   tables,
   setTables,
   menuList,
@@ -450,6 +453,15 @@ export const UsahaQuView: React.FC<UsahaQuViewProps> = ({
             >
               <Store className="w-3 h-3 text-[#5eead4]" />
               <span>POS Modular</span>
+            </button>
+          )}
+          {onOpenBantuan && (
+            <button
+              onClick={onOpenBantuan}
+              className="w-6 h-6 rounded-lg bg-emerald-950/80 hover:bg-emerald-950 text-[#5eead4] border border-[#5eead4]/40 flex items-center justify-center font-bold shadow-xs active:scale-95"
+              title="Pusat Bantuan UsahaQu & Smart Care"
+            >
+              <Headphones className="w-3 h-3 text-[#5eead4]" />
             </button>
           )}
           <span className="text-[10px] bg-[#5eead4] text-emerald-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">

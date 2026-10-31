@@ -34,6 +34,7 @@ interface WargaDashboardProps {
   onOpenSiagaQu: () => void;
   onOpenUsahaQu: () => void;
   onOpenModularQu: () => void;
+  onOpenBantuan: () => void;
   onOpenChatQu: () => void;
   onOpenMuamalahQu: () => void;
   onOpenAreaQu: () => void;
@@ -46,6 +47,7 @@ export const WargaDashboard: React.FC<WargaDashboardProps> = ({
   onOpenSiagaQu,
   onOpenUsahaQu,
   onOpenModularQu,
+  onOpenBantuan,
   onOpenChatQu,
   onOpenMuamalahQu,
   onOpenAreaQu,
@@ -93,10 +95,10 @@ export const WargaDashboard: React.FC<WargaDashboardProps> = ({
             </button>
             <button
               className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition"
-              onClick={() => showToast('Pusat Bantuan WargaQu')}
-              title="Bantuan"
+              onClick={onOpenBantuan}
+              title="Pusat Bantuan UsahaQu & WargaQu"
             >
-              <Headphones className="w-5 h-5 text-emerald-100" />
+              <Headphones className="w-5 h-5 text-[#5eead4]" />
             </button>
             <button
               className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition"
@@ -429,6 +431,28 @@ export const WargaDashboard: React.FC<WargaDashboardProps> = ({
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-emerald-600" />
+        </div>
+
+        {/* PUSAT BANTUAN & AUTO-FIX CS STRIP */}
+        <div
+          onClick={onOpenBantuan}
+          className="bg-slate-900 rounded-xl p-3 border border-slate-700/80 flex items-center justify-between shadow-sm cursor-pointer hover:bg-slate-800 active:scale-[0.99] transition text-white"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-500 text-slate-950 rounded-lg flex items-center justify-center font-bold shadow-md shadow-emerald-500/30">
+              <Headphones className="w-5 h-5 text-slate-950" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h5 className="text-xs font-bold text-white">UsahaQu Smart Care</h5>
+                <span className="bg-emerald-900/80 text-emerald-300 text-[9px] px-1.5 py-0.2 rounded font-mono font-bold border border-emerald-500/30">
+                  AI Auto-Fix
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">Pusat Bantuan &amp; Prompt Engine Konsol CS</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-emerald-400" />
         </div>
 
         {/* LATEST NEWS / COMMUNITY INFO */}

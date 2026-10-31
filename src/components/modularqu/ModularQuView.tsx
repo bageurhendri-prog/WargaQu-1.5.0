@@ -26,7 +26,8 @@ import {
   Layers,
   Search,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Headphones
 } from 'lucide-react';
 import {
   ModularProduct,
@@ -39,6 +40,7 @@ import {
 interface ModularQuViewProps {
   onBackToWarga: () => void;
   onOpenBaksoQu?: () => void;
+  onOpenBantuan?: () => void;
   showNotification: (msg: string) => void;
 }
 
@@ -64,6 +66,7 @@ const DEFAULT_MODULAR_PRODUCTS: ModularProduct[] = [
 export const ModularQuView: React.FC<ModularQuViewProps> = ({
   onBackToWarga,
   onOpenBaksoQu,
+  onOpenBantuan,
   showNotification,
 }) => {
   // Navigation Tab State
@@ -895,6 +898,17 @@ export const ModularQuView: React.FC<ModularQuViewProps> = ({
             >
               <Store className="w-3.5 h-3.5 text-emerald-400" />
               <span>Resto Meja</span>
+            </button>
+          )}
+
+          {/* Quick toggle to Smart Care CS */}
+          {onOpenBantuan && (
+            <button
+              onClick={onOpenBantuan}
+              className="w-7 h-7 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center border border-slate-700 active:scale-95"
+              title="Pusat Bantuan UsahaQu & Smart Care"
+            >
+              <Headphones className="w-3.5 h-3.5 text-emerald-400" />
             </button>
           )}
 
