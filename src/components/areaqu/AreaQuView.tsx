@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -26,11 +26,7 @@ import {
   Minus,
   CheckCircle,
   Radio,
-  ExternalLink,
-  Locate,
-  LocateFixed,
-  RefreshCw,
-  AlertCircle
+  ExternalLink
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -71,226 +67,10 @@ export interface POIItem {
   avatarIcon: string;
   vehicleType?: string;
   priceStart?: number;
-  defaultLat: number;
-  defaultLng: number;
 }
 
-// User default fallback anchor coordinates (RT 03 / RW 05 Yogyakarta Malioboro Area)
-const DEFAULT_USER_COORDS: [number, number] = [-7.7928, 110.3658];
-
-// Helper: Haversine distance formula in meters
-function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3; // Earth radius in meters
-  const toRad = (x: number) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
-}
-
-// Base community POI dataset (referenced around default coordinates)
-const BASE_POI_DATA: Omit<POIItem, 'lat' | 'lng' | 'distanceMeter' | 'etaMinutes'>[] = [
-  // 1. UsahaQu / Bakso Qu (Main anchor food)
-  {
-    id: 'poi-baksoqu',
-    name: 'Bakso Qu 1.0 (Pusat & Gerobak Keliling)',
-    category: 'keliling',
-    categoryLabel: 'Pedagang Keliling',
-    defaultLat: -7.7925,
-    defaultLng: 110.3662,
-    rating: 5.0,
-    address: 'Depan Balai Warga RT 03 / Keliling Blok A',
-    phone: '0812-3456-7890',
-    status: 'keliling',
-    description: 'Bakso urat jumbo daging sapi asli, kuah kaldu rempah, siap dipanggil ke depan rumah.',
-    hasUsahaQuCatalog: true,
-    avatarIcon: '🍜',
-    vehicleType: 'Gerobak Motor Siaga'
-  },
-  // 2. Warung & Toko
-  {
-    id: 'poi-warung-1',
-    name: 'Warung Madura Berkah 24 Jam',
-    category: 'warung',
-    categoryLabel: 'Warung & Toko',
-    defaultLat: -7.7935,
-    defaultLng: 110.3652,
-    rating: 4.8,
-    address: 'Jl. Melati Blok B No. 01',
-    phone: '0813-1122-3344',
-    status: 'buka',
-    description: 'Toko sembako, bensin eceran, token listrik, rokok, dan galon isi ulang antar pintu.',
-    avatarIcon: '🏪'
-  },
-  {
-    id: 'poi-warung-2',
-    name: 'Toko Kelontong Bu Hj. Aminah',
-    category: 'warung',
-    categoryLabel: 'Warung & Toko',
-    defaultLat: -7.7915,
-    defaultLng: 110.3645,
-    rating: 4.9,
-    address: 'Jl. Flamboyan Blok A No. 08',
-    phone: '0815-4455-6677',
-    status: 'buka',
-    description: 'Beras pandan wangi, minyak goreng, telur ayam segar, bumbu dapur komplit.',
-    avatarIcon: '🛒'
-  },
-  // 3. Bengkel
-  {
-    id: 'poi-bengkel-1',
-    name: 'Bengkel Motor & Tambal Ban Mas Joko',
-    category: 'bengkel',
-    categoryLabel: 'Bengkel & Servis',
-    defaultLat: -7.7942,
-    defaultLng: 110.367,
-    rating: 4.9,
-    address: 'Pos Portal Gang RT 03 Selatan',
-    phone: '0818-7788-9900',
-    status: 'buka',
-    description: 'Tambal ban tubeless, ganti oli, servis karbu/injeksi, siap jemput motor mogok di perumahan.',
-    avatarIcon: '🔧'
-  },
-  // 4. PKL & Kaki Lima
-  {
-    id: 'poi-pkl-1',
-    name: 'Pecel Lele & Ayam Goreng Mbak Sri',
-    category: 'pkl',
-    categoryLabel: 'PKL & Kaki Lima',
-    defaultLat: -7.792,
-    defaultLng: 110.3675,
-    rating: 4.9,
-    address: 'Tenda Kaki Lima Depan Pos Ronda Utama',
-    phone: '0821-3322-1100',
-    status: 'buka',
-    description: 'Sambal terasi segar cobek dadakan, lele goreng renyah kremes, nasi uduk gurih hangat.',
-    avatarIcon: '🍗',
-    hasUsahaQuCatalog: true
-  },
-  {
-    id: 'poi-pkl-2',
-    name: 'Martabak Manis & Telur Bang Ali',
-    category: 'pkl',
-    categoryLabel: 'PKL & Kaki Lima',
-    defaultLat: -7.7948,
-    defaultLng: 110.364,
-    rating: 4.7,
-    address: 'Pertigaan Gapura Utama RW 05',
-    phone: '0857-8899-0011',
-    status: 'buka',
-    description: 'Martabak telur bebek 3 butir tebal daging cincang + martabak manis keju coklat premium.',
-    avatarIcon: '🥞'
-  },
-  // 5. Pedagang Keliling (Motor / Gerobak)
-  {
-    id: 'poi-keliling-1',
-    name: 'Sayur Segar Keliling Mas Dedi',
-    category: 'keliling',
-    categoryLabel: 'Pedagang Keliling',
-    defaultLat: -7.7918,
-    defaultLng: 110.365,
-    rating: 4.9,
-    address: 'Sedang lewat depan Blok C No. 05',
-    phone: '0812-9988-7766',
-    status: 'keliling',
-    description: 'Sayuran hijau panen pagi, tempe garit, ikan kembung segar, tahu sutra, bumbu racik.',
-    avatarIcon: '🥦',
-    vehicleType: 'Motor Roda Tiga Viar'
-  },
-  {
-    id: 'poi-keliling-2',
-    name: 'Roti Hangat Sari Roti & Donat Mas Anto',
-    category: 'keliling',
-    categoryLabel: 'Pedagang Keliling',
-    defaultLat: -7.7932,
-    defaultLng: 110.368,
-    rating: 4.8,
-    address: 'Sedang mangkal dekat Taman Bermain Anak',
-    phone: '0813-4433-2211',
-    status: 'keliling',
-    description: 'Roti manis coklat keju freshly baked, donat gula tabur, sari kacang hijau hangat.',
-    avatarIcon: '🍞',
-    vehicleType: 'Sepeda Motor Box Musik'
-  },
-  // 6. Transportasi (Angkot, Taksi, Rental, Ojol, Bus Kota)
-  {
-    id: 'poi-trans-1',
-    name: 'Ojol Warga Siaga (Pak Slamet)',
-    category: 'transportasi',
-    categoryLabel: 'Transportasi Warga',
-    defaultLat: -7.7922,
-    defaultLng: 110.3668,
-    rating: 5.0,
-    address: 'Standby di Pangkalan Ojek Pos Utama',
-    phone: '0819-2233-4455',
-    status: 'buka',
-    description: 'Antar jemput anak sekolah, belanja pasar, atau darurat medis siap sedia helm bersih.',
-    avatarIcon: '🛵',
-    vehicleType: 'Honda Vario 160'
-  },
-  {
-    id: 'poi-trans-2',
-    name: 'Rental Mobil Avanza & Xpander Pak Rusdi',
-    category: 'transportasi',
-    categoryLabel: 'Transportasi Warga',
-    defaultLat: -7.795,
-    defaultLng: 110.366,
-    rating: 4.9,
-    address: 'Garasi Blok D No. 15',
-    phone: '0812-5566-7788',
-    status: 'buka',
-    description: 'Sewa harian/mingguan dengan supir atau lepas kunci. Bersih wangi ber-AC dingin.',
-    avatarIcon: '🚗',
-    vehicleType: 'Toyota Avanza 2023'
-  },
-  {
-    id: 'poi-trans-3',
-    name: 'Angkot Jalur 01 (Stasiun - Pasar - RT 03)',
-    category: 'transportasi',
-    categoryLabel: 'Transportasi Warga',
-    defaultLat: -7.796,
-    defaultLng: 110.368,
-    rating: 4.6,
-    address: 'Halte Gerbang Luar RW 05',
-    phone: '0817-6655-4433',
-    status: 'buka',
-    description: 'Angkutan kota kuning rute resmi Malioboro - Pasar Beringharjo - Tugu Yogyakarta.',
-    avatarIcon: '🚐',
-    vehicleType: 'Mikrolet Kuning 01'
-  },
-  // 7. Jasa Panggilan (AC, Pijat, Sedot WC, Tukang Bangunan, Servis)
-  {
-    id: 'poi-jasa-1',
-    name: 'Servis AC & Cuci Rumah Mas Joko',
-    category: 'jasa',
-    categoryLabel: 'Jasa Panggilan',
-    defaultLat: -7.7938,
-    defaultLng: 110.3635,
-    rating: 4.9,
-    address: 'Rumah Blok C No. 02',
-    phone: '0822-4455-6677',
-    status: 'buka',
-    description: 'Cuci AC cepat bersih, tambah freon R32/R410, perbaikan bocor bergaransi 30 hari.',
-    avatarIcon: '❄️'
-  },
-  {
-    id: 'poi-jasa-2',
-    name: 'Pijat Urut Tuna Netra & Refleksi Pak Hadi',
-    category: 'jasa',
-    categoryLabel: 'Jasa Panggilan',
-    defaultLat: -7.791,
-    defaultLng: 110.3655,
-    rating: 5.0,
-    address: 'Rumah Blok A No. 19',
-    phone: '0813-8899-1122',
-    status: 'buka',
-    description: 'Ahli pijat urut tradisional pegal linu, saraf kejepit, terkilir, siap dipanggil ke rumah.',
-    avatarIcon: '💆'
-  }
-];
+// User current anchor coordinates (RT 03 / RW 05 Yogyakarta Malioboro Area)
+const USER_COORDS: [number, number] = [-7.7928, 110.3658];
 
 export const AreaQuView: React.FC<AreaQuViewProps> = ({
   onBackToMain,
@@ -303,31 +83,9 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
   // Map Container & Instance Ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const userMarkerRef = useRef<L.Marker | null>(null);
   const radarCircleRef = useRef<L.Circle | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-
-  // Dynamic User GPS Coordinates state
-  const [userCoords, setUserCoords] = useState<[number, number]>(() => {
-    try {
-      const saved = localStorage.getItem('areaqu_user_coords');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 2 && !isNaN(parsed[0]) && !isNaN(parsed[1])) {
-          return [parsed[0], parsed[1]];
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-    return DEFAULT_USER_COORDS;
-  });
-
-  const [gpsStatus, setGpsStatus] = useState<'locating' | 'locked' | 'denied' | 'error' | 'idle'>('locating');
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-  const [useRealGPSAnchor, setUseRealGPSAnchor] = useState<boolean>(true);
 
   // Grab Driver-style states
   const [isDriverOnline, setIsDriverOnline] = useState<boolean>(true);
@@ -349,32 +107,235 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
     { value: 100000, label: '100 km (Maksimal)' }
   ];
 
-  // Dynamic POI Calculation: Anchored around user's real GPS position
-  const POI_LIST: POIItem[] = useMemo(() => {
-    return BASE_POI_DATA.map(item => {
-      let lat = item.defaultLat;
-      let lng = item.defaultLng;
-
-      if (useRealGPSAnchor) {
-        // Calculate offset from default Yogyakarta center to position around user's GPS
-        const latOffset = item.defaultLat - DEFAULT_USER_COORDS[0];
-        const lngOffset = item.defaultLng - DEFAULT_USER_COORDS[1];
-        lat = userCoords[0] + latOffset;
-        lng = userCoords[1] + lngOffset;
+  // POI Dataset covering categories: warung/toko/bengkel, PKL, keliling, transportasi, jasa panggilan
+  const POI_LIST: POIItem[] = useMemo(
+    () => [
+      // 1. UsahaQu / Bakso Qu (Main anchor food)
+      {
+        id: 'poi-baksoqu',
+        name: 'Bakso Qu 1.0 (Pusat & Gerobak Keliling)',
+        category: 'keliling',
+        categoryLabel: 'Pedagang Keliling',
+        lat: -7.7925,
+        lng: 110.3662,
+        distanceMeter: 65,
+        etaMinutes: 2,
+        rating: 5.0,
+        address: 'Depan Balai Warga RT 03 / Keliling Blok A',
+        phone: '0812-3456-7890',
+        status: 'keliling',
+        description: 'Bakso urat jumbo daging sapi asli, kuah kaldu rempah, siap dipanggil ke depan rumah.',
+        hasUsahaQuCatalog: true,
+        avatarIcon: '🍜',
+        vehicleType: 'Gerobak Motor Siaga'
+      },
+      // 2. Warung & Toko
+      {
+        id: 'poi-warung-1',
+        name: 'Warung Madura Berkah 24 Jam',
+        category: 'warung',
+        categoryLabel: 'Warung & Toko',
+        lat: -7.7935,
+        lng: 110.3652,
+        distanceMeter: 120,
+        etaMinutes: 3,
+        rating: 4.8,
+        address: 'Jl. Melati Blok B No. 01',
+        phone: '0813-1122-3344',
+        status: 'buka',
+        description: 'Toko sembako, bensin eceran, token listrik, rokok, dan galon isi ulang antar pintu.',
+        avatarIcon: '🏪'
+      },
+      {
+        id: 'poi-warung-2',
+        name: 'Toko Kelontong Bu Hj. Aminah',
+        category: 'warung',
+        categoryLabel: 'Warung & Toko',
+        lat: -7.7915,
+        lng: 110.3645,
+        distanceMeter: 210,
+        etaMinutes: 4,
+        rating: 4.9,
+        address: 'Jl. Flamboyan Blok A No. 08',
+        phone: '0815-4455-6677',
+        status: 'buka',
+        description: 'Beras pandan wangi, minyak goreng, telur ayam segar, bumbu dapur komplit.',
+        avatarIcon: '🛒'
+      },
+      // 3. Bengkel
+      {
+        id: 'poi-bengkel-1',
+        name: 'Bengkel Motor & Tambal Ban Mas Joko',
+        category: 'bengkel',
+        categoryLabel: 'Bengkel & Servis',
+        lat: -7.7942,
+        lng: 110.367,
+        distanceMeter: 280,
+        etaMinutes: 5,
+        rating: 4.9,
+        address: 'Pos Portal Gang RT 03 Selatan',
+        phone: '0818-7788-9900',
+        status: 'buka',
+        description: 'Tambal ban tubeless, ganti oli, servis karbu/injeksi, siap jemput motor mogok di perumahan.',
+        avatarIcon: '🔧'
+      },
+      // 4. PKL & Kaki Lima
+      {
+        id: 'poi-pkl-1',
+        name: 'Pecel Lele & Ayam Goreng Mbak Sri',
+        category: 'pkl',
+        categoryLabel: 'PKL & Kaki Lima',
+        lat: -7.792,
+        lng: 110.3675,
+        distanceMeter: 190,
+        etaMinutes: 4,
+        rating: 4.9,
+        address: 'Tenda Kaki Lima Depan Pos Ronda Utama',
+        phone: '0821-3322-1100',
+        status: 'buka',
+        description: 'Sambal terasi segar cobek dadakan, lele goreng renyah kremes, nasi uduk gurih hangat.',
+        avatarIcon: '🍗',
+        hasUsahaQuCatalog: true
+      },
+      {
+        id: 'poi-pkl-2',
+        name: 'Martabak Manis & Telur Bang Ali',
+        category: 'pkl',
+        categoryLabel: 'PKL & Kaki Lima',
+        lat: -7.7948,
+        lng: 110.364,
+        distanceMeter: 340,
+        etaMinutes: 6,
+        rating: 4.7,
+        address: 'Pertigaan Gapura Utama RW 05',
+        phone: '0857-8899-0011',
+        status: 'buka',
+        description: 'Martabak telur bebek 3 butir tebal daging cincang + martabak manis keju coklat premium.',
+        avatarIcon: '🥞'
+      },
+      // 5. Pedagang Keliling (Motor / Gerobak)
+      {
+        id: 'poi-keliling-1',
+        name: 'Sayur Segar Keliling Mas Dedi',
+        category: 'keliling',
+        categoryLabel: 'Pedagang Keliling',
+        lat: -7.7918,
+        lng: 110.365,
+        distanceMeter: 140,
+        etaMinutes: 3,
+        rating: 4.9,
+        address: 'Sedang lewat depan Blok C No. 05',
+        phone: '0812-9988-7766',
+        status: 'keliling',
+        description: 'Sayuran hijau panen pagi, tempe garit, ikan kembung segar, tahu sutra, bumbu racik.',
+        avatarIcon: '🥦',
+        vehicleType: 'Motor Roda Tiga Viar'
+      },
+      {
+        id: 'poi-keliling-2',
+        name: 'Roti Hangat Sari Roti & Donat Mas Anto',
+        category: 'keliling',
+        categoryLabel: 'Pedagang Keliling',
+        lat: -7.7932,
+        lng: 110.368,
+        distanceMeter: 250,
+        etaMinutes: 5,
+        rating: 4.8,
+        address: 'Sedang mangkal dekat Taman Bermain Anak',
+        phone: '0813-4433-2211',
+        status: 'keliling',
+        description: 'Roti manis coklat keju freshly baked, donat gula tabur, sari kacang hijau hangat.',
+        avatarIcon: '🍞',
+        vehicleType: 'Sepeda Motor Box Musik'
+      },
+      // 6. Transportasi (Angkot, Taksi, Rental, Ojol, Bus Kota)
+      {
+        id: 'poi-trans-1',
+        name: 'Ojol Warga Siaga (Pak Slamet)',
+        category: 'transportasi',
+        categoryLabel: 'Transportasi Warga',
+        lat: -7.7922,
+        lng: 110.3668,
+        distanceMeter: 90,
+        etaMinutes: 2,
+        rating: 5.0,
+        address: 'Standby di Pangkalan Ojek Pos Utama',
+        phone: '0819-2233-4455',
+        status: 'buka',
+        description: 'Antar jemput anak sekolah, belanja pasar, atau darurat medis siap sedia helm bersih.',
+        avatarIcon: '🛵',
+        vehicleType: 'Honda Vario 160'
+      },
+      {
+        id: 'poi-trans-2',
+        name: 'Rental Mobil Avanza & Xpander Pak Rusdi',
+        category: 'transportasi',
+        categoryLabel: 'Transportasi Warga',
+        lat: -7.795,
+        lng: 110.366,
+        distanceMeter: 410,
+        etaMinutes: 7,
+        rating: 4.9,
+        address: 'Garasi Blok D No. 15',
+        phone: '0812-5566-7788',
+        status: 'buka',
+        description: 'Sewa harian/mingguan dengan supir atau lepas kunci. Bersih wangi ber-AC dingin.',
+        avatarIcon: '🚗',
+        vehicleType: 'Toyota Avanza 2023'
+      },
+      {
+        id: 'poi-trans-3',
+        name: 'Angkot Jalur 01 (Stasiun - Pasar - RT 03)',
+        category: 'transportasi',
+        categoryLabel: 'Transportasi Warga',
+        lat: -7.796,
+        lng: 110.368,
+        distanceMeter: 650,
+        etaMinutes: 10,
+        rating: 4.6,
+        address: 'Halte Gerbang Luar RW 05',
+        phone: '0817-6655-4433',
+        status: 'buka',
+        description: 'Angkutan kota kuning rute resmi Malioboro - Pasar Beringharjo - Tugu Yogyakarta.',
+        avatarIcon: '🚐',
+        vehicleType: 'Mikrolet Kuning 01'
+      },
+      // 7. Jasa Panggilan (AC, Pijat, Sedot WC, Tukang Bangunan, Servis)
+      {
+        id: 'poi-jasa-1',
+        name: 'Servis AC & Cuci Rumah Mas Joko',
+        category: 'jasa',
+        categoryLabel: 'Jasa Panggilan',
+        lat: -7.7938,
+        lng: 110.3635,
+        distanceMeter: 310,
+        etaMinutes: 6,
+        rating: 4.9,
+        address: 'Rumah Blok C No. 02',
+        phone: '0822-4455-6677',
+        status: 'buka',
+        description: 'Cuci AC cepat bersih, tambah freon R32/R410, perbaikan bocor bergaransi 30 hari.',
+        avatarIcon: '❄️'
+      },
+      {
+        id: 'poi-jasa-2',
+        name: 'Pijat Urut Tuna Netra & Refleksi Pak Hadi',
+        category: 'jasa',
+        categoryLabel: 'Jasa Panggilan',
+        lat: -7.791,
+        lng: 110.3655,
+        distanceMeter: 240,
+        etaMinutes: 5,
+        rating: 5.0,
+        address: 'Rumah Blok A No. 19',
+        phone: '0813-8899-1122',
+        status: 'buka',
+        description: 'Ahli pijat urut tradisional pegal linu, saraf kejepit, terkilir, siap dipanggil ke rumah.',
+        avatarIcon: '💆'
       }
-
-      const distance = calculateHaversineDistance(userCoords[0], userCoords[1], lat, lng);
-      const eta = Math.max(1, Math.round(distance / 65)); // ~65m per minute average
-
-      return {
-        ...item,
-        lat,
-        lng,
-        distanceMeter: distance,
-        etaMinutes: eta
-      };
-    });
-  }, [userCoords, useRealGPSAnchor]);
+    ],
+    []
+  );
 
   // Filter POIs based on Category & Search
   const filteredPOIs = useMemo(() => {
@@ -391,73 +352,6 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
     });
   }, [POI_LIST, selectedCategory, searchQuery, selectedRadius]);
 
-  // Request & Auto-lock User GPS
-  const requestGPSLocation = useCallback((flyToUser: boolean = true) => {
-    if (!navigator.geolocation) {
-      setGpsStatus('error');
-      showNotification('Browser atau perangkat tidak mendukung Geolocation GPS.');
-      return;
-    }
-
-    setGpsStatus('locating');
-    showNotification('🛰️ Mengunci titik GPS perangkat Anda...');
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        const newCoords: [number, number] = [latitude, longitude];
-
-        setUserCoords(newCoords);
-        setGpsAccuracy(accuracy);
-        setGpsStatus('locked');
-
-        try {
-          localStorage.setItem('areaqu_user_coords', JSON.stringify(newCoords));
-        } catch (e) {
-          // ignore
-        }
-
-        // Update Leaflet User Marker & Tooltip
-        if (userMarkerRef.current) {
-          userMarkerRef.current.setLatLng(newCoords);
-          userMarkerRef.current.setTooltipContent(
-            `<b>Lokasi GPS Anda</b><br/>${latitude.toFixed(5)}, ${longitude.toFixed(5)}<br/><span style="color:#059669; font-weight:bold;">Akurasi: ±${Math.round(accuracy)}m</span>`
-          );
-        }
-
-        // Update Radar Circle center
-        if (radarCircleRef.current) {
-          radarCircleRef.current.setLatLng(newCoords);
-        }
-
-        // Smooth Fly to User GPS
-        if (flyToUser && mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo(newCoords, selectedRadius <= 500 ? 17 : 16, {
-            animate: true,
-            duration: 1.2
-          });
-        }
-
-        showNotification(`✅ Titik GPS Terkunci (${latitude.toFixed(4)}, ${longitude.toFixed(4)} • ±${Math.round(accuracy)}m)`);
-      },
-      (error) => {
-        console.warn('Geolocation acquisition notice:', error);
-        if (error.code === error.PERMISSION_DENIED) {
-          setGpsStatus('denied');
-          showNotification('⚠️ Izin lokasi belum aktif. Menggunakan titik default.');
-        } else {
-          setGpsStatus('error');
-          showNotification('⚠️ Sinyal GPS lemah atau timeout. Menggunakan titik terakhir.');
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000
-      }
-    );
-  }, [selectedRadius, showNotification]);
-
   // Initialize Leaflet OpenStreetMap
   useEffect(() => {
     const container = mapContainerRef.current;
@@ -470,9 +364,9 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
 
     let map: L.Map | null = null;
     try {
-      // Create map centered on initial user coords
+      // Create map centered on user
       map = L.map(container, {
-        center: userCoords,
+        center: USER_COORDS,
         zoom: 17,
         zoomControl: false,
         attributionControl: false
@@ -488,34 +382,20 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
       const userIcon = L.divIcon({
         className: 'custom-user-marker',
         html: `
-          <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
-            <div style="position: absolute; inset: 0; border-radius: 9999px; background-color: rgba(5, 150, 105, 0.4); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-            <div style="position: absolute; width: 26px; height: 26px; border-radius: 9999px; background-color: #047857; border: 3px solid #ffffff; box-shadow: 0 4px 8px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">
+          <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; inset: 0; border-radius: 9999px; background-color: rgba(5, 150, 105, 0.35); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+            <div style="position: absolute; width: 24px; height: 24px; border-radius: 9999px; background-color: #047857; border: 3px solid #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
               <div style="width: 8px; height: 8px; border-radius: 9999px; background-color: #5eead4;"></div>
             </div>
           </div>
         `,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19]
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
       });
 
-      const userMarker = L.marker(userCoords, { icon: userIcon, zIndexOffset: 1000 })
+      L.marker(USER_COORDS, { icon: userIcon, zIndexOffset: 1000 })
         .addTo(map)
-        .bindTooltip('Lokasi GPS Anda', { permanent: false, direction: 'top' });
-
-      userMarkerRef.current = userMarker;
-
-      // Draw initial radar coverage circle
-      const circle = L.circle(userCoords, {
-        radius: selectedRadius,
-        color: '#059669',
-        weight: 1.5,
-        fillColor: '#10b981',
-        fillOpacity: 0.12,
-        dashArray: '4, 6'
-      }).addTo(map);
-
-      radarCircleRef.current = circle;
+        .bindTooltip('Lokasi Anda (RT 03 / RW 05)', { permanent: false, direction: 'top' });
 
       // Layer group for POI markers
       const markersLayer = L.layerGroup().addTo(map);
@@ -528,51 +408,12 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
         }
-      }, 250);
+      }, 200);
     } catch (err) {
       console.error('Error initializing Leaflet in AreaQu:', err);
     }
 
-    // Auto-trigger GPS acquisition immediately upon opening Modul AreaQu
-    requestGPSLocation(true);
-
-    // Continuous watchPosition for live tracking
-    if ('geolocation' in navigator) {
-      try {
-        const watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            const newCoords: [number, number] = [latitude, longitude];
-            setUserCoords(newCoords);
-            setGpsAccuracy(accuracy);
-            setGpsStatus('locked');
-
-            if (userMarkerRef.current) {
-              userMarkerRef.current.setLatLng(newCoords);
-            }
-            if (radarCircleRef.current) {
-              radarCircleRef.current.setLatLng(newCoords);
-            }
-          },
-          (err) => {
-            console.warn('WatchPosition notice:', err);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 20000,
-            maximumAge: 5000
-          }
-        );
-        watchIdRef.current = watchId;
-      } catch (e) {
-        // ignore
-      }
-    }
-
     return () => {
-      if (watchIdRef.current !== null && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -583,21 +424,17 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
     };
   }, []);
 
-  // Update Radar Circle & User Marker when userCoords or radius changes
+  // Update Radar Circle when radius changes
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-
-    if (userMarkerRef.current) {
-      userMarkerRef.current.setLatLng(userCoords);
-    }
 
     if (radarCircleRef.current) {
       map.removeLayer(radarCircleRef.current);
     }
 
-    // Redraw active radar coverage circle
-    const circle = L.circle(userCoords, {
+    // Draw active radar coverage circle
+    const circle = L.circle(USER_COORDS, {
       radius: selectedRadius,
       color: '#059669',
       weight: 1.5,
@@ -607,13 +444,8 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
     }).addTo(map);
 
     radarCircleRef.current = circle;
-  }, [userCoords, selectedRadius]);
 
-  // Adjust zoom smoothly according to radius
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
+    // Adjust zoom smoothly according to radius
     if (selectedRadius <= 500) {
       map.setZoom(17);
     } else if (selectedRadius <= 1000) {
@@ -671,7 +503,7 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
           </div>
           ${
             poi.status === 'keliling'
-              ? `<span style="position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background: #22c55e; border: 2px solid white; border-radius: 9999px;"></span>`
+              ? `<span style="position: absolute; -top: 2px; -right: 2px; width: 10px; height: 10px; background: #22c55e; border: 2px solid white; border-radius: 9999px;"></span>`
               : ''
           }
         </div>
@@ -689,11 +521,11 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
       marker.on('click', () => {
         setSelectedPOI(poi);
 
-        // Draw route line to this POI from user GPS
+        // Draw route line to this POI
         if (routePolylineRef.current) {
           map.removeLayer(routePolylineRef.current);
         }
-        const polyline = L.polyline([userCoords, [poi.lat, poi.lng]], {
+        const polyline = L.polyline([USER_COORDS, [poi.lat, poi.lng]], {
           color: '#059669',
           weight: 4,
           opacity: 0.8,
@@ -706,16 +538,14 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
 
       markersLayer.addLayer(marker);
     });
-  }, [filteredPOIs, selectedPOI, userCoords]);
+  }, [filteredPOIs, selectedPOI]);
 
-  // Recenter map to user GPS coordinates
+  // Recenter map handler
   const handleRecenter = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo(userCoords, selectedRadius <= 500 ? 17 : 16, {
-        animate: true,
-        duration: 0.8
-      });
-      showNotification(`Peta dipusatkan ke titik GPS Anda (${userCoords[0].toFixed(4)}, ${userCoords[1].toFixed(4)})`);
+      mapInstanceRef.current.panTo(USER_COORDS);
+      mapInstanceRef.current.setZoom(selectedRadius <= 500 ? 17 : 15);
+      showNotification('Peta dipusatkan ke posisi Anda (RT 03)');
     }
   };
 
@@ -730,7 +560,7 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
     <div className="w-full h-full flex flex-col overflow-hidden relative bg-slate-900 font-sans select-none text-slate-800">
       
       {/* ========================================================================= */}
-      {/* 1. TOP HEADER (GRAB DRIVER STYLE with SiagaQu SOS shortcut & GPS Auto Status) */}
+      {/* 1. TOP HEADER (GRAB DRIVER STYLE with SiagaQu SOS shortcut) */}
       {/* ========================================================================= */}
       <header className="absolute top-0 left-0 right-0 z-30 p-2.5 flex flex-col gap-2 pointer-events-none">
         
@@ -771,27 +601,9 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
               </span>
             </div>
 
-            {/* GPS Live Pill Badge */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                {gpsStatus === 'locked' ? (
-                  <>
-                    <LocateFixed className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-                    <span>GPS On</span>
-                  </>
-                ) : gpsStatus === 'locating' ? (
-                  <>
-                    <RefreshCw className="w-2.5 h-2.5 text-amber-300 animate-spin" />
-                    <span>Cari GPS...</span>
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="w-2.5 h-2.5 text-slate-300" />
-                    <span>RT 03</span>
-                  </>
-                )}
-              </span>
-            </div>
+            <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 rounded-full">
+              RT 03 / RW 05
+            </span>
           </div>
 
           {/* SIAGAQU ICON IN HEADER (CRITICAL REQUIREMENT) */}
@@ -805,42 +617,6 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
               SOS
             </span>
           </button>
-        </div>
-
-        {/* Live GPS Coordinates Info Strip */}
-        <div className="flex items-center justify-between bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-xs border border-emerald-200/80 text-[11px] pointer-events-auto">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {gpsStatus === 'locked' ? (
-              <LocateFixed className="w-3.5 h-3.5 text-emerald-600 shrink-0 animate-pulse" />
-            ) : gpsStatus === 'locating' ? (
-              <RefreshCw className="w-3.5 h-3.5 text-amber-500 shrink-0 animate-spin" />
-            ) : (
-              <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            )}
-            <span className="font-bold text-slate-800 truncate">
-              {gpsStatus === 'locked'
-                ? `GPS: ${userCoords[0].toFixed(5)}, ${userCoords[1].toFixed(5)}`
-                : gpsStatus === 'locating'
-                ? 'Mendeteksi titik GPS perangkat Anda...'
-                : 'Mode Default (RT 03)'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {gpsAccuracy !== null && (
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-300">
-                ±{Math.round(gpsAccuracy)}m
-              </span>
-            )}
-            <button
-              onClick={() => requestGPSLocation(true)}
-              className="text-emerald-700 font-extrabold text-[10px] bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 active:scale-95 transition flex items-center gap-1"
-              title="Kunci ulang titik GPS"
-            >
-              <RefreshCw className={`w-2.5 h-2.5 ${gpsStatus === 'locating' ? 'animate-spin' : ''}`} />
-              <span>{gpsStatus === 'locating' ? 'Mencari...' : 'Kunci GPS'}</span>
-            </button>
-          </div>
         </div>
 
         {/* Location Search Bar + Radius Trigger */}
@@ -907,35 +683,9 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
         <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
         {/* MAP FLOATING CONTROLS (RIGHT SIDE - GRAB DRIVER STYLE) */}
-        <div className="absolute right-3 top-44 z-20 flex flex-col gap-2">
+        <div className="absolute right-3 top-36 z-20 flex flex-col gap-2">
           
-          {/* 1. AUTO GPS BUTTON (Direct User Request Feature) */}
-          <button
-            onClick={() => requestGPSLocation(true)}
-            className={`w-11 h-11 rounded-full shadow-xl border flex items-center justify-center active:scale-95 transition relative ${
-              gpsStatus === 'locked'
-                ? 'bg-emerald-600 text-white border-white shadow-emerald-700/40'
-                : gpsStatus === 'locating'
-                ? 'bg-amber-500 text-white border-amber-200 animate-pulse'
-                : 'bg-white text-slate-700 border-slate-200'
-            }`}
-            title="Kunci & Arahkan Titik GPS Saya (Realtime)"
-          >
-            {gpsStatus === 'locating' ? (
-              <RefreshCw className="w-5 h-5 animate-spin text-white" />
-            ) : gpsStatus === 'locked' ? (
-              <LocateFixed className="w-5 h-5 text-white" />
-            ) : (
-              <Locate className="w-5 h-5 text-slate-700" />
-            )}
-            {gpsStatus === 'locked' && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-300 border-2 border-white rounded-full flex items-center justify-center">
-                <span className="w-1.5 h-1.5 bg-emerald-800 rounded-full"></span>
-              </span>
-            )}
-          </button>
-
-          {/* 2. Recenter button */}
+          {/* Recenter button */}
           <button
             onClick={handleRecenter}
             className="w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 text-emerald-800 flex items-center justify-center active:scale-95 transition"
@@ -944,7 +694,7 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
             <Compass className="w-5 h-5 text-emerald-700" />
           </button>
 
-          {/* 3. Zoom In */}
+          {/* Zoom In */}
           <button
             onClick={() => handleZoom(1)}
             className="w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 text-slate-700 flex items-center justify-center active:scale-95 transition"
@@ -953,7 +703,7 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
             <Plus className="w-5 h-5" />
           </button>
 
-          {/* 4. Zoom Out */}
+          {/* Zoom Out */}
           <button
             onClick={() => handleZoom(-1)}
             className="w-10 h-10 rounded-full bg-white shadow-lg border border-slate-200 text-slate-700 flex items-center justify-center active:scale-95 transition"
@@ -1093,40 +843,28 @@ export const AreaQuView: React.FC<AreaQuViewProps> = ({
       ) : (
         /* GRAB DRIVER IDLE BOTTOM SUMMARY BAR */
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-md rounded-t-3xl shadow-xl border-t border-slate-200 p-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
-              {gpsStatus === 'locating' ? (
-                <RefreshCw className="w-5 h-5 text-amber-600 animate-spin" />
-              ) : (
-                <Compass className="w-5 h-5 text-emerald-700 animate-spin" style={{ animationDuration: '8s' }} />
-              )}
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+              <Compass className="w-5 h-5 text-emerald-700 animate-spin" style={{ animationDuration: '8s' }} />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h4 className="text-xs font-bold text-slate-800 truncate">
-                  {filteredPOIs.length} Titik Warga Terdeteksi
-                </h4>
-                {gpsStatus === 'locked' && (
-                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-1.5 py-0.5 rounded-full border border-emerald-300 shrink-0">
-                    GPS Live
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 truncate">
-                {gpsStatus === 'locked'
-                  ? `Titik GPS: ${userCoords[0].toFixed(5)}, ${userCoords[1].toFixed(5)} (±${gpsAccuracy ? Math.round(gpsAccuracy) : 10}m)`
-                  : `Radius ${selectedRadius >= 1000 ? `${selectedRadius / 1000} km` : `${selectedRadius} m`} di sekeliling posisi Anda`}
+            <div>
+              <h4 className="text-xs font-bold text-slate-800">
+                {filteredPOIs.length} Titik Warga Terdeteksi
+              </h4>
+              <p className="text-[10px] text-slate-500">
+                Radius {selectedRadius >= 1000 ? `${selectedRadius / 1000} km` : `${selectedRadius} m`} di sekeliling RT 03
               </p>
             </div>
           </div>
 
           <button
             onClick={() => {
+              // auto select first POI
               if (filteredPOIs.length > 0) {
                 setSelectedPOI(filteredPOIs[0]);
               }
             }}
-            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow active:scale-95 transition shrink-0 ml-2"
+            className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow active:scale-95 transition"
           >
             Pilih Titik
           </button>
