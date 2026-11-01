@@ -20,6 +20,11 @@ import {
   Calendar,
   MapPin,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  Crosshair,
+  Compass,
   Shield,
   FileText,
   Upload,
@@ -1434,6 +1439,62 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     return `${prefix}-${num}`;
   };
 
+  // Standarisasi Ukuran Kartu Modular & Spasi Canvas
+  const CANVAS_CARD_WIDTH = 270;
+  const CANVAS_CARD_HEIGHT = 185;
+  const CANVAS_GAP_X = 45;
+  const CANVAS_GAP_Y = 65;
+
+  // Canvas Pan & Auto-Fit Navigation State
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const [isCanvasPanning, setIsCanvasPanning] = useState(false);
+  const panStartRef = useRef<{ mouseX: number; mouseY: number; scrollLeft: number; scrollTop: number } | null>(null);
+
+  // Deteksi Tabrakan / Tumpang Tindih Posisi (Anti-Collision / Non-Overlapping)
+  const findNonOverlappingPosition = (
+    desiredX: number,
+    desiredY: number,
+    allMembers: FamilyMember[],
+    preferredShift: 'right' | 'left' | 'up' | 'down' = 'right'
+  ): { x: number; y: number } => {
+    let testX = Math.max(30, desiredX);
+    let testY = Math.max(30, desiredY);
+
+    const isColliding = (x: number, y: number) => {
+      return allMembers.some(m => {
+        const mx = m.canvasX ?? 40;
+        const my = m.canvasY ?? 40;
+        return (
+          Math.abs(mx - x) < (CANVAS_CARD_WIDTH - 25) &&
+          Math.abs(my - y) < (CANVAS_CARD_HEIGHT - 25)
+        );
+      });
+    };
+
+    let attempts = 0;
+    while (isColliding(testX, testY) && attempts < 25) {
+      attempts++;
+      if (preferredShift === 'right') {
+        testX += CANVAS_CARD_WIDTH + CANVAS_GAP_X;
+      } else if (preferredShift === 'left') {
+        testX -= (CANVAS_CARD_WIDTH + CANVAS_GAP_X);
+        if (testX < 30) {
+          testX = Math.max(30, desiredX) + attempts * (CANVAS_CARD_WIDTH + CANVAS_GAP_X);
+        }
+      } else if (preferredShift === 'up') {
+        testY -= (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y);
+        if (testY < 30) {
+          testY = 30;
+          testX += CANVAS_CARD_WIDTH + CANVAS_GAP_X;
+        }
+      } else if (preferredShift === 'down') {
+        testY += CANVAS_CARD_HEIGHT + CANVAS_GAP_Y;
+      }
+    }
+
+    return { x: Math.max(30, testX), y: Math.max(30, testY) };
+  };
+
   // Tata Otomatis Silsilah Modular (Auto Layout by Generations and Trah)
   const autoLayoutModularCanvas = (membersList: FamilyMember[]): FamilyMember[] => {
     const buyut = membersList.filter(m => m.relation === 'buyut');
@@ -1449,25 +1510,25 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       });
       return sorted.map((m, idx) => ({
         ...m,
-        canvasX: 40 + idx * 290,
+        canvasX: 60 + idx * (CANVAS_CARD_WIDTH + CANVAS_GAP_X),
         canvasY: startY,
         memberNo: getMemberNo(m, membersList)
       }));
     };
 
-    const lBuyut = layoutRow(buyut, 40);
-    const lKakek = layoutRow(kakek, 270);
-    const lParents = layoutRow(parents, 500);
-    const lChildren = layoutRow(children, 730);
-    const lCucu = layoutRow(cucu, 960);
+    const lBuyut = layoutRow(buyut, 60);
+    const lKakek = layoutRow(kakek, 60 + (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y));
+    const lParents = layoutRow(parents, 60 + (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y) * 2);
+    const lChildren = layoutRow(children, 60 + (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y) * 3);
+    const lCucu = layoutRow(cucu, 60 + (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y) * 4);
 
     const map = new Map<string, FamilyMember>();
     [...lBuyut, ...lKakek, ...lParents, ...lChildren, ...lCucu].forEach(m => map.set(m.id, m));
 
     return membersList.map(m => map.get(m.id) || {
       ...m,
-      canvasX: m.canvasX ?? 100,
-      canvasY: m.canvasY ?? 100,
+      canvasX: m.canvasX ?? 60,
+      canvasY: m.canvasY ?? 60,
       memberNo: getMemberNo(m, membersList)
     });
   };
@@ -1476,7 +1537,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     if (members.length === 0) return;
     const reordered = autoLayoutModularCanvas(members);
     setMembers(reordered);
-    showNotification('Posisi kartu silsilah berhasil ditata otomatis secara rapi!');
+    showNotification('Posisi kartu silsilah berhasil ditata otomatis rapi & bebas tabrakan!');
   };
 
   // Dragging Card Handlers
@@ -1493,13 +1554,21 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   };
 
   const handleDragMove = (clientX: number, clientY: number) => {
-    if (!draggingCardId || !dragStartRef.current) return;
-    const deltaX = (clientX - dragStartRef.current.mouseX) / treeZoom;
-    const deltaY = (clientY - dragStartRef.current.mouseY) / treeZoom;
-    const newX = Math.max(10, Math.round(dragStartRef.current.cardX + deltaX));
-    const newY = Math.max(10, Math.round(dragStartRef.current.cardY + deltaY));
+    if (draggingCardId && dragStartRef.current) {
+      const deltaX = (clientX - dragStartRef.current.mouseX) / treeZoom;
+      const deltaY = (clientY - dragStartRef.current.mouseY) / treeZoom;
+      const newX = Math.max(20, Math.min(2900, Math.round(dragStartRef.current.cardX + deltaX)));
+      const newY = Math.max(20, Math.min(2200, Math.round(dragStartRef.current.cardY + deltaY)));
+      setMembers(prev => prev.map(m => (m.id === draggingCardId ? { ...m, canvasX: newX, canvasY: newY } : m)));
+      return;
+    }
 
-    setMembers(prev => prev.map(m => (m.id === draggingCardId ? { ...m, canvasX: newX, canvasY: newY } : m)));
+    if (isCanvasPanning && panStartRef.current && canvasContainerRef.current) {
+      const deltaX = clientX - panStartRef.current.mouseX;
+      const deltaY = clientY - panStartRef.current.mouseY;
+      canvasContainerRef.current.scrollLeft = panStartRef.current.scrollLeft - deltaX;
+      canvasContainerRef.current.scrollTop = panStartRef.current.scrollTop - deltaY;
+    }
   };
 
   const handleDragEnd = () => {
@@ -1507,6 +1576,70 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       setDraggingCardId(null);
       dragStartRef.current = null;
     }
+    if (isCanvasPanning) {
+      setIsCanvasPanning(false);
+      panStartRef.current = null;
+    }
+  };
+
+  // Canvas Pan (4 Arah: Atas, Bawah, Kiri, Kanan, Pusat)
+  const handlePanCanvas = (direction: 'up' | 'down' | 'left' | 'right' | 'center') => {
+    if (!canvasContainerRef.current) return;
+    const container = canvasContainerRef.current;
+    const step = 280;
+    if (direction === 'up') container.scrollBy({ top: -step, behavior: 'smooth' });
+    else if (direction === 'down') container.scrollBy({ top: step, behavior: 'smooth' });
+    else if (direction === 'left') container.scrollBy({ left: -step, behavior: 'smooth' });
+    else if (direction === 'right') container.scrollBy({ left: step, behavior: 'smooth' });
+    else if (direction === 'center') {
+      handleAutoFitAll();
+    }
+  };
+
+  // Zoom Auto Mencakup Semua (Fit All Cards in View)
+  const handleAutoFitAll = () => {
+    if (displayedMembers.length === 0 || !canvasContainerRef.current) return;
+    const container = canvasContainerRef.current;
+    const containerW = container.clientWidth || 800;
+    const containerH = container.clientHeight || 580;
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+
+    displayedMembers.forEach(m => {
+      const x = m.canvasX ?? 60;
+      const y = m.canvasY ?? 60;
+      if (x < minX) minX = x;
+      if (x + CANVAS_CARD_WIDTH > maxX) maxX = x + CANVAS_CARD_WIDTH;
+      if (y < minY) minY = y;
+      if (y + CANVAS_CARD_HEIGHT > maxY) maxY = y + CANVAS_CARD_HEIGHT;
+    });
+
+    const contentW = (maxX - minX) + 100;
+    const contentH = (maxY - minY) + 100;
+
+    const scaleX = (containerW - 40) / contentW;
+    const scaleY = (containerH - 40) / contentH;
+    let fitZoom = Math.min(scaleX, scaleY);
+    fitZoom = Math.max(0.35, Math.min(1.2, Math.round(fitZoom * 100) / 100));
+
+    setTreeZoom(fitZoom);
+
+    setTimeout(() => {
+      if (canvasContainerRef.current) {
+        const targetScrollX = Math.max(0, (minX - 40) * fitZoom);
+        const targetScrollY = Math.max(0, (minY - 40) * fitZoom);
+        canvasContainerRef.current.scrollTo({
+          left: targetScrollX,
+          top: targetScrollY,
+          behavior: 'smooth'
+        });
+      }
+    }, 60);
+
+    showNotification(`Tampilan disesuaikan mencakup semua (${Math.round(fitZoom * 100)}% • ${displayedMembers.length} anggota)!`);
   };
 
   // Upload & Kompres Pas Foto Langsung per Card
@@ -1537,7 +1670,11 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     showNotification(`${target.name} dihapus dari silsilah.`);
   };
 
-  // Quick Add Relative Submit (+)
+  // Quick Add Relative Submit (+) dengan Arah Otomatis:
+  // - Ayah/Ibu: KE ATAS
+  // - Pasangan / Saudara (Kakak/Adik): KANAN atau KIRI
+  // - Anak: KE BAWAH
+  // Dilengkapi Anti-Collision agar kartu tidak tumpang tindih
   const handleQuickAddRelativeSubmit = (data: {
     name: string;
     binBinti?: string;
@@ -1554,14 +1691,60 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     const target = quickAddModal.targetMember;
     const rel = quickAddModal.relationType;
 
-    let newX = target.canvasX ?? 100;
-    let newY = target.canvasY ?? 100;
-    if (rel === 'ayah') { newX -= 140; newY -= 240; }
-    else if (rel === 'ibu') { newX += 140; newY -= 240; }
-    else if (rel === 'pasangan') { newX += 290; }
-    else if (rel === 'anak') { newY += 240; }
-    else if (rel === 'kakak') { newX -= 290; }
-    else if (rel === 'adik') { newX += 290; }
+    const targetX = target.canvasX ?? 100;
+    const targetY = target.canvasY ?? 100;
+
+    let desiredX = targetX;
+    let desiredY = targetY;
+    let preferredShift: 'right' | 'left' | 'up' | 'down' = 'right';
+
+    if (rel === 'ayah') {
+      // AYAH -> KE ATAS & condong kiri
+      desiredY = targetY - (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y);
+      desiredX = targetX - (CANVAS_CARD_WIDTH / 2 + 15);
+      preferredShift = 'left';
+    } else if (rel === 'ibu') {
+      // IBU -> KE ATAS & condong kanan
+      desiredY = targetY - (CANVAS_CARD_HEIGHT + CANVAS_GAP_Y);
+      desiredX = targetX + (CANVAS_CARD_WIDTH / 2 + 15);
+      preferredShift = 'right';
+    } else if (rel === 'pasangan') {
+      // PASANGAN -> KANAN sejajar Y
+      desiredY = targetY;
+      desiredX = targetX + CANVAS_CARD_WIDTH + CANVAS_GAP_X;
+      preferredShift = 'right';
+    } else if (rel === 'kakak') {
+      // KAKAK -> KIRI sejajar Y
+      desiredY = targetY;
+      desiredX = targetX - (CANVAS_CARD_WIDTH + CANVAS_GAP_X);
+      preferredShift = 'left';
+    } else if (rel === 'adik') {
+      // ADIK -> KANAN sejajar Y (jika ada pasangan di kanan, posisikan setelah pasangan)
+      desiredY = targetY;
+      if (target.spouseId) {
+        const sp = members.find(s => s.id === target.spouseId);
+        const spouseRight = sp ? (sp.canvasX ?? targetX) + CANVAS_CARD_WIDTH : targetX + CANVAS_CARD_WIDTH;
+        desiredX = Math.max(targetX + CANVAS_CARD_WIDTH + CANVAS_GAP_X, spouseRight + CANVAS_GAP_X);
+      } else {
+        desiredX = targetX + CANVAS_CARD_WIDTH + CANVAS_GAP_X;
+      }
+      preferredShift = 'right';
+    } else if (rel === 'anak') {
+      // ANAK -> KE BAWAH
+      desiredY = targetY + CANVAS_CARD_HEIGHT + CANVAS_GAP_Y;
+      // Periksa anak yang sudah ada untuk target atau pasangannya
+      const existingChildren = members.filter(m => m.parentId === target.id || (target.spouseId && m.parentId === target.spouseId));
+      if (existingChildren.length > 0) {
+        const maxChildX = Math.max(...existingChildren.map(c => c.canvasX ?? targetX));
+        desiredX = maxChildX + CANVAS_CARD_WIDTH + CANVAS_GAP_X;
+      } else {
+        desiredX = targetX;
+      }
+      preferredShift = 'right';
+    }
+
+    // Eksekusi penataan anti tumpang tindih
+    const finalPos = findNonOverlappingPosition(desiredX, desiredY, members, preferredShift);
 
     let relationValue: FamilyMember['relation'] = 'anak';
     let kinshipTitle = 'Anak';
@@ -1626,8 +1809,8 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       address: data.address?.trim() || target.address,
       phone: data.phone?.trim() || undefined,
       photo: data.photo,
-      canvasX: Math.max(20, newX),
-      canvasY: Math.max(20, newY),
+      canvasX: finalPos.x,
+      canvasY: finalPos.y,
       memberNo: nextMemberNo,
       parentId: rel === 'anak' ? target.id : undefined,
       spouseId: rel === 'pasangan' ? target.id : undefined,
@@ -1644,7 +1827,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
 
     setQuickAddModal({ open: false, targetMember: null, relationType: 'anak' });
     setSelectedCardId(newId);
-    showNotification(`${newMember.name} (${kinshipTitle}) berhasil ditambahkan ke silsilah!`);
+    showNotification(`${newMember.name} (${kinshipTitle}) berhasil ditempatkan secara otomatis!`);
   };
 
   // Unduh Vektor SVG Asli (100% Tajam Tanpa Pecah - A4 s/d A0)
@@ -2971,31 +3154,39 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                   </h3>
                 </div>
 
-                {/* Zoom & Action Controls */}
+                {/* Zoom & Action Controls (Fleksibel & Auto Mencakup Semua) */}
                 <div className="flex items-center space-x-1 bg-emerald-50 p-1 rounded-xl border border-emerald-200">
                   <button
-                    onClick={() => setTreeZoom(z => Math.max(0.7, z - 0.1))}
-                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition"
-                    title="Perkecil Tampilan"
+                    onClick={() => setTreeZoom(z => Math.max(0.35, Math.round((z - 0.1) * 10) / 10))}
+                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition active:scale-95"
+                    title="Perkecil Tampilan (Zoom Out)"
                   >
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-[10px] font-bold text-emerald-800 px-1 font-mono">
+                  <span className="text-[10px] font-bold text-emerald-900 px-1 font-mono min-w-[34px] text-center">
                     {Math.round(treeZoom * 100)}%
                   </span>
                   <button
-                    onClick={() => setTreeZoom(z => Math.min(1.4, z + 0.1))}
-                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition"
-                    title="Perbesar Tampilan"
+                    onClick={() => setTreeZoom(z => Math.min(1.6, Math.round((z + 0.1) * 10) / 10))}
+                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition active:scale-95"
+                    title="Perbesar Tampilan (Zoom In)"
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => setTreeZoom(1)}
-                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition"
-                    title="Reset Ukuran"
+                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition active:scale-95"
+                    title="Reset Ukuran (100%)"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={handleAutoFitAll}
+                    className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[10px] font-bold flex items-center gap-1 shadow-2xs transition active:scale-95 ml-0.5"
+                    title="Auto Sesuaikan Zoom & Posisi untuk Mencakup Semua Kartu"
+                  >
+                    <Maximize2 className="w-3 h-3 text-[#5eead4]" />
+                    <span className="hidden sm:inline">Cakup Semua</span>
                   </button>
                 </div>
               </div>
@@ -3215,28 +3406,90 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               ) : canvasLayoutMode === 'modular' ? (
                 /* ================= MODE 1: KANVAS MODULAR BEBAS (DRAGGABLE DENGAN GARIS OTOMATIS) ================= */
                 <div
+                  ref={canvasContainerRef}
+                  onMouseDown={e => {
+                    if ((e.target as HTMLElement).closest('.family-card-item') || (e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('label')) return;
+                    setIsCanvasPanning(true);
+                    if (canvasContainerRef.current) {
+                      panStartRef.current = {
+                        mouseX: e.clientX,
+                        mouseY: e.clientY,
+                        scrollLeft: canvasContainerRef.current.scrollLeft,
+                        scrollTop: canvasContainerRef.current.scrollTop
+                      };
+                    }
+                  }}
                   onMouseMove={e => handleDragMove(e.clientX, e.clientY)}
                   onMouseUp={handleDragEnd}
+                  onMouseLeave={handleDragEnd}
                   onTouchMove={e => {
                     if (e.touches[0]) handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
                   }}
                   onTouchEnd={handleDragEnd}
-                  className="w-full h-[580px] overflow-auto rounded-2xl border-2 border-emerald-200/90 relative bg-[#f8fafc] bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] select-none p-2 shadow-inner"
+                  className={`w-full h-[600px] overflow-auto rounded-2xl border-2 border-emerald-300 relative bg-[#f8fafc] bg-[radial-gradient(#94a3b8_1.2px,transparent_1.2px)] [background-size:24px_24px] select-none p-2 shadow-inner ${
+                    isCanvasPanning ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
                 >
+                  {/* Floating 4-Arah Canvas Pan D-Pad & Cakup Semua */}
+                  <div className="sticky top-2 right-2 ml-auto w-fit z-30 flex flex-col items-center bg-white/95 backdrop-blur-xs p-1.5 rounded-2xl border border-emerald-200 shadow-md pointer-events-auto">
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter mb-0.5">Navigasi Kanvas</span>
+                    <div className="grid grid-cols-3 gap-0.5 w-[76px] h-[76px] place-items-center">
+                      <div></div>
+                      <button
+                        onClick={() => handlePanCanvas('up')}
+                        className="w-6 h-6 bg-emerald-50 hover:bg-emerald-200 text-emerald-800 rounded-lg flex items-center justify-center transition active:scale-90"
+                        title="Geser Ke Atas"
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+                      <div></div>
+                      <button
+                        onClick={() => handlePanCanvas('left')}
+                        className="w-6 h-6 bg-emerald-50 hover:bg-emerald-200 text-emerald-800 rounded-lg flex items-center justify-center transition active:scale-90"
+                        title="Geser Ke Kiri"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handlePanCanvas('center')}
+                        className="w-6 h-6 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg flex items-center justify-center transition active:scale-90 shadow-2xs"
+                        title="Pusatkan / Cakup Semua"
+                      >
+                        <Crosshair className="w-3.5 h-3.5 text-[#5eead4]" />
+                      </button>
+                      <button
+                        onClick={() => handlePanCanvas('right')}
+                        className="w-6 h-6 bg-emerald-50 hover:bg-emerald-200 text-emerald-800 rounded-lg flex items-center justify-center transition active:scale-90"
+                        title="Geser Ke Kanan"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <div></div>
+                      <button
+                        onClick={() => handlePanCanvas('down')}
+                        className="w-6 h-6 bg-emerald-50 hover:bg-emerald-200 text-emerald-800 rounded-lg flex items-center justify-center transition active:scale-90"
+                        title="Geser Ke Bawah"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                      <div></div>
+                    </div>
+                  </div>
+
                   <div
                     style={{
                       transform: `scale(${treeZoom})`,
                       transformOrigin: 'top left',
-                      width: '1800px',
-                      height: '1300px',
+                      width: '3200px',
+                      height: '2400px',
                       position: 'relative'
                     }}
                     className="transition-transform duration-100"
                   >
-                    {/* SVG Auto Family Lines (Garis Keluarga Otomatis) */}
+                    {/* SVG Auto Family Lines (Garis Keluarga Otomatis di Belakang Kartu) */}
                     <svg
                       className="absolute inset-0 w-full h-full pointer-events-none z-0"
-                      style={{ width: '1800px', height: '1300px' }}
+                      style={{ width: '3200px', height: '2400px' }}
                     >
                       <defs>
                         <marker id="arrowHead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
@@ -3247,30 +3500,31 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                       {displayedMembers.map(m => {
                         const lines = [];
 
-                        // 1. Spouses (Pasangan - Garis Emas/Amber Beda Warna)
+                        // 1. Spouses (Pasangan - Garis Emas/Amber Beda Warna Kanan-Kiri)
                         if (m.spouseId) {
                           const spouse = displayedMembers.find(s => s.id === m.spouseId);
                           if (spouse && (m.canvasX ?? 0) <= (spouse.canvasX ?? 0)) {
-                            const startX = (m.canvasX ?? 40) + 260;
-                            const midY = (m.canvasY ?? 40) + 90;
+                            const startX = (m.canvasX ?? 40) + CANVAS_CARD_WIDTH;
+                            const midY = (m.canvasY ?? 40) + Math.round(CANVAS_CARD_HEIGHT / 2);
                             const endX = (spouse.canvasX ?? 40);
+                            const spouseMidY = (spouse.canvasY ?? 40) + Math.round(CANVAS_CARD_HEIGHT / 2);
                             lines.push(
                               <g key={`sp_${m.id}_${spouse.id}`}>
-                                <line x1={startX} y1={midY} x2={endX} y2={midY} stroke="#f59e0b" strokeWidth="3" strokeDasharray="6,4" />
-                                <circle cx={(startX + endX) / 2} cy={midY} r="9" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.5" />
-                                <text x={(startX + endX) / 2} y={midY + 3.5} textAnchor="middle" fontSize="10" fill="#ffffff" fontWeight="bold">💍</text>
+                                <line x1={startX} y1={midY} x2={endX} y2={spouseMidY} stroke="#f59e0b" strokeWidth="3" strokeDasharray="6,4" />
+                                <circle cx={(startX + endX) / 2} cy={(midY + spouseMidY) / 2} r="10" fill="#f59e0b" stroke="#ffffff" strokeWidth="2" />
+                                <text x={(startX + endX) / 2} y={(midY + spouseMidY) / 2 + 3.5} textAnchor="middle" fontSize="11" fill="#ffffff" fontWeight="bold">💍</text>
                               </g>
                             );
                           }
                         }
 
-                        // 2. Parent -> Child (Garis Keturunan Nasab Hijau Emerald)
+                        // 2. Parent -> Child (Garis Keturunan Nasab Hijau Emerald Ke Bawah)
                         if (m.parentId) {
                           const parent = displayedMembers.find(p => p.id === m.parentId);
                           if (parent) {
-                            const px = (parent.canvasX ?? 40) + 130;
-                            const py = (parent.canvasY ?? 40) + 180;
-                            const cx = (m.canvasX ?? 40) + 130;
+                            const px = (parent.canvasX ?? 40) + Math.round(CANVAS_CARD_WIDTH / 2);
+                            const py = (parent.canvasY ?? 40) + CANVAS_CARD_HEIGHT;
+                            const cx = (m.canvasX ?? 40) + Math.round(CANVAS_CARD_WIDTH / 2);
                             const cy = (m.canvasY ?? 40);
                             const midY = (py + cy) / 2;
                             lines.push(
@@ -3279,7 +3533,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                                 d={`M ${px} ${py} C ${px} ${midY}, ${cx} ${midY}, ${cx} ${cy}`}
                                 fill="none"
                                 stroke="#059669"
-                                strokeWidth="3"
+                                strokeWidth="3.5"
                                 strokeLinecap="round"
                               />
                             );
@@ -3287,9 +3541,9 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                         } else if (m.relation === 'anak') {
                           const autoParent = displayedMembers.find(p => p.relation === 'ayah' || p.role.includes('Kepala') || p.id === '1');
                           if (autoParent && autoParent.id !== m.id) {
-                            const px = (autoParent.canvasX ?? 40) + 130;
-                            const py = (autoParent.canvasY ?? 40) + 180;
-                            const cx = (m.canvasX ?? 40) + 130;
+                            const px = (autoParent.canvasX ?? 40) + Math.round(CANVAS_CARD_WIDTH / 2);
+                            const py = (autoParent.canvasY ?? 40) + CANVAS_CARD_HEIGHT;
+                            const cx = (m.canvasX ?? 40) + Math.round(CANVAS_CARD_WIDTH / 2);
                             const cy = (m.canvasY ?? 40);
                             const midY = (py + cy) / 2;
                             lines.push(
@@ -3306,16 +3560,16 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                           }
                         }
 
-                        // 3. Siblings (Kakak / Adik - Garis Cyan/Teal)
+                        // 3. Siblings (Kakak / Adik - Garis Cyan/Teal Kanan-Kiri)
                         if (m.siblingId) {
                           const sib = displayedMembers.find(s => s.id === m.siblingId);
                           if (sib && (m.canvasX ?? 0) < (sib.canvasX ?? 0)) {
-                            const x1 = (m.canvasX ?? 40) + 260;
-                            const y1 = (m.canvasY ?? 40) + 90;
+                            const x1 = (m.canvasX ?? 40) + CANVAS_CARD_WIDTH;
+                            const y1 = (m.canvasY ?? 40) + 40;
                             const x2 = (sib.canvasX ?? 40);
-                            const y2 = (sib.canvasY ?? 40) + 90;
+                            const y2 = (sib.canvasY ?? 40) + 40;
                             lines.push(
-                              <line key={`sib_${m.id}_${sib.id}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#0284c7" strokeWidth="2" strokeDasharray="4,4" />
+                              <line key={`sib_${m.id}_${sib.id}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#0284c7" strokeWidth="2.5" strokeDasharray="5,4" />
                             );
                           }
                         }
@@ -3324,7 +3578,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                       })}
                     </svg>
 
-                    {/* MODULAR CARDS RENDERED ON CANVAS */}
+                    {/* MODULAR CARDS RENDERED ON CANVAS (UKURAN SAMA & BEBAS TABRAKAN) */}
                     {displayedMembers.map(m => {
                       const isSelected = selectedCardId === m.id;
                       const memberNumber = getMemberNo(m);
@@ -3336,17 +3590,18 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                             position: 'absolute',
                             left: `${m.canvasX ?? 40}px`,
                             top: `${m.canvasY ?? 40}px`,
-                            width: '260px'
+                            width: `${CANVAS_CARD_WIDTH}px`,
+                            height: `${CANVAS_CARD_HEIGHT}px`
                           }}
                           onClick={() => setSelectedCardId(m.id)}
-                          className={`bg-white rounded-2xl p-3 border-2 transition shadow-md select-none cursor-pointer ${
+                          className={`family-card-item bg-white rounded-2xl p-2.5 border-2 transition shadow-md select-none cursor-pointer flex flex-col justify-between overflow-hidden ${
                             isSelected
                               ? 'border-emerald-600 ring-4 ring-emerald-400/50 shadow-xl z-20 bg-emerald-50/20'
                               : 'border-slate-200 hover:border-emerald-300 hover:shadow-lg z-10'
                           }`}
                         >
                           {/* Card Header: Nomor Anggota + Trah Badge + Drag Grip Handle */}
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-2">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5 shrink-0">
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono text-[9px] font-black bg-slate-900 text-[#5eead4] px-1.5 py-0.5 rounded shadow-2xs">
                                 {memberNumber}
@@ -3375,7 +3630,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                                 if (e.touches[0]) handleDragStart(m.id, e.touches[0].clientX, e.touches[0].clientY);
                               }}
                               className="cursor-grab active:cursor-grabbing p-1 text-slate-500 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-100 rounded transition flex items-center gap-0.5"
-                              title="Tarik untuk geser posisi kartu"
+                              title="Tarik untuk geser posisi kartu secara manual"
                             >
                               <GripVertical className="w-3.5 h-3.5" />
                               <span className="text-[9px] font-bold">Geser</span>
@@ -3383,7 +3638,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                           </div>
 
                           {/* Card Main: Avatar Pas Foto Langsung/Galeri + Info */}
-                          <div className="flex items-start gap-2.5">
+                          <div className="flex items-start gap-2.5 min-h-0 flex-1">
                             {/* Avatar & Camera/Gallery trigger */}
                             <div className="relative group shrink-0">
                               <div
@@ -3402,7 +3657,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                               <label
                                 onClick={e => e.stopPropagation()}
                                 className="absolute -bottom-1 -left-1 bg-emerald-700 hover:bg-emerald-800 text-white p-1 rounded-full shadow cursor-pointer transition active:scale-95"
-                                title="Ambil Foto Langsung (Kamera HP)"
+                                title="Ambil Pas Foto Langsung (Kamera HP)"
                               >
                                 <Camera className="w-3 h-3" />
                                 <input
@@ -3421,7 +3676,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                               <label
                                 onClick={e => e.stopPropagation()}
                                 className="absolute -bottom-1 -right-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 p-1 rounded-full shadow cursor-pointer transition active:scale-95"
-                                title="Pilih dari Galeri"
+                                title="Pilih Pas Foto dari Galeri"
                               >
                                 <ImageIcon className="w-3 h-3 text-emerald-700" />
                                 <input
@@ -3495,7 +3750,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                           </div>
 
                           {/* Card Bottom: Hubungan & Edit/Hapus */}
-                          <div className="flex items-center justify-between pt-1.5 mt-2 border-t border-slate-100 text-[10px]">
+                          <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-slate-100 text-[10px] shrink-0">
                             <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">
                               {m.kinshipTitle || m.role}
                             </span>
