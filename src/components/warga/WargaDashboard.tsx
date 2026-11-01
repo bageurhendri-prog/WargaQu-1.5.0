@@ -25,11 +25,13 @@ import {
   Download,
   Mic,
   Store,
-  CreditCard
+  CreditCard,
+  GitFork
 } from 'lucide-react';
 import { PWAInstallBanner } from '../pwa/PWAInstallBanner';
 
 interface WargaDashboardProps {
+  onOpenLeluhurQu: () => void;
   onOpenRtQu: () => void;
   onOpenSiagaQu: () => void;
   onOpenUsahaQu: () => void;
@@ -43,6 +45,7 @@ interface WargaDashboardProps {
 }
 
 export const WargaDashboard: React.FC<WargaDashboardProps> = ({
+  onOpenLeluhurQu,
   onOpenRtQu,
   onOpenSiagaQu,
   onOpenUsahaQu,
@@ -172,20 +175,175 @@ export const WargaDashboard: React.FC<WargaDashboardProps> = ({
           </div>
         </div>
 
-        {/* ANNOUNCEMENT / BANNER CAROUSEL */}
-        <div
-          onClick={() => showToast('Detail Kegiatan: Gotong Royong Minggu Pagi jam 07:00')}
-          className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-xl p-3.5 text-white shadow-sm flex items-center justify-between cursor-pointer hover:opacity-95 active:scale-[0.99] transition border border-emerald-500/30"
-        >
-          <div className="space-y-0.5">
-            <div className="inline-block bg-amber-400 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-              Kegiatan Warga
-            </div>
-            <h4 className="text-xs font-bold leading-tight">Gotong Royong Minggu Ini!</h4>
-            <p className="text-[11px] text-emerald-100">Dapatkan Poin Keaktifan Warga &gt;</p>
+        {/* MENU UTAMA (MODULE GRID) - LAYER & POSISI SEJAJAR DENGAN LELUHURQU */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100/90 relative z-10">
+          {/* Section Header */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-slate-800 text-sm">Menu Utama</h3>
+            <button
+              onClick={() => showToast('Mode Atur Menu Utama')}
+              className="text-xs font-bold text-emerald-700 flex items-center gap-1 hover:underline"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Atur
+            </button>
           </div>
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
-            <Sparkles className="w-5 h-5 text-amber-300" />
+
+          {/* Grid Items (Menu Utama): Baris 1: LeluhurQu, RtQu, MuamalahQu, AreaQu (Sejajar) */}
+          <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+            {/* 1. LeluhurQu */}
+            <button
+              onClick={onOpenLeluhurQu}
+              className="flex flex-col items-center group relative active:scale-95 transition"
+              title="Buka Modul LeluhurQu (Silsilah & Medsos Keluarga)"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition shadow-xs">
+                <GitFork className="w-6 h-6 rotate-180 text-emerald-700" />
+              </div>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                LeluhurQu
+              </span>
+            </button>
+
+            {/* 2. RtQu */}
+            <button
+              onClick={onOpenRtQu}
+              className="flex flex-col items-center group active:scale-95 transition"
+              title="Buka Modul RtQu"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition shadow-xs">
+                <Home className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                RtQu
+              </span>
+            </button>
+
+            {/* 3. MuamalahQu */}
+            <button
+              onClick={onOpenMuamalahQu}
+              className="flex flex-col items-center group active:scale-95 transition"
+              title="Buka Modul MuamalahQu"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition shadow-xs">
+                <HeartHandshake className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                MuamalahQu
+              </span>
+            </button>
+
+            {/* 4. AreaQu */}
+            <button
+              onClick={onOpenAreaQu}
+              className="flex flex-col items-center group active:scale-95 transition"
+              title="Buka Modul AreaQu"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 group-hover:scale-105 transition shadow-xs">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                AreaQu
+              </span>
+            </button>
+
+            {/* 5. SiagaQu (Panic Button) */}
+            <button
+              onClick={onOpenSiagaQu}
+              className="flex flex-col items-center group relative active:scale-95 transition"
+              title="Buka Modul SiagaQu (Panic Button)"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 group-hover:scale-105 transition shadow-xs">
+                <Siren className="w-6 h-6" />
+              </div>
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-extrabold px-1 rounded-full">
+                SOS
+              </span>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                SiagaQu
+              </span>
+            </button>
+
+            {/* 6. UsahaQu (BAKSO QU POS SYSTEM) */}
+            <button
+              onClick={onOpenUsahaQu}
+              className="flex flex-col items-center group relative active:scale-95 transition"
+              title="Buka POS Kasir Bakso Qu"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-100 via-teal-100 to-emerald-200 border-2 border-emerald-500 flex items-center justify-center text-emerald-800 group-hover:scale-105 transition shadow-md shadow-emerald-200/50">
+                <ShoppingBag className="w-6 h-6 text-emerald-700" />
+              </div>
+              {/* Highlight badge for Bakso Qu */}
+              <span className="absolute -top-1.5 -right-1 bg-emerald-700 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full shadow-xs uppercase tracking-tight">
+                POS
+              </span>
+              {activeOrderCount > 0 && (
+                <span className="absolute -top-1.5 -left-1 bg-rose-600 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                  {activeOrderCount}
+                </span>
+              )}
+              <span className="text-[11px] font-bold text-emerald-900 mt-1.5 text-center leading-tight flex items-center gap-0.5">
+                UsahaQu
+              </span>
+              <span className="text-[9px] text-emerald-600 font-semibold leading-none">
+                Bakso Qu
+              </span>
+            </button>
+
+            {/* 7. POS ModularQu (MODULAR VOICE POS SYSTEM) */}
+            <button
+              onClick={onOpenModularQu}
+              className="flex flex-col items-center group relative active:scale-95 transition"
+              title="Buka POS ModularQu (Voice AI Kasir)"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-100 via-emerald-100 to-emerald-200 border-2 border-emerald-500 flex items-center justify-center text-emerald-800 group-hover:scale-105 transition shadow-md shadow-emerald-200/50">
+                <Store className="w-6 h-6 text-emerald-700" />
+              </div>
+              <span className="absolute -top-1.5 -right-1 bg-teal-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full shadow-xs uppercase tracking-tight">
+                MODULAR
+              </span>
+              <span className="text-[11px] font-bold text-emerald-900 mt-1.5 text-center leading-tight flex items-center gap-0.5">
+                ModularQu
+              </span>
+              <span className="text-[9px] text-teal-600 font-semibold leading-none">
+                Voice POS
+              </span>
+            </button>
+
+            {/* 8. ChatQu */}
+            <button
+              onClick={onOpenChatQu}
+              className="flex flex-col items-center group relative active:scale-95 transition"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700 group-hover:scale-105 transition shadow-xs">
+                <MessageSquare className="w-6 h-6" />
+              </div>
+              <span className="absolute -top-1 right-1 bg-emerald-600 text-white text-[9px] font-bold px-1 rounded-full">
+                3
+              </span>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                ChatQu
+              </span>
+            </button>
+
+            {/* 9. Setting */}
+            <button
+              onClick={() => onOpenEmptyModule('setting')}
+              className="flex flex-col items-center group active:scale-95 transition"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 group-hover:scale-105 transition shadow-xs">
+                <Settings className="w-6 h-6" />
+              </div>
+              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
+                Setting
+              </span>
+            </button>
+          </div>
+
+          {/* Indicator dots */}
+          <div className="flex justify-center items-center gap-1.5 mt-5">
+            <span className="w-5 h-1.5 bg-emerald-600 rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-emerald-200 rounded-full"></span>
           </div>
         </div>
 
@@ -260,159 +418,20 @@ export const WargaDashboard: React.FC<WargaDashboardProps> = ({
           </div>
         </div>
 
-        {/* MENU UTAMA (MODULE GRID) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100/90">
-          {/* Section Header */}
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-slate-800 text-sm">Menu Utama</h3>
-            <button
-              onClick={() => showToast('Mode Atur Menu Utama')}
-              className="text-xs font-bold text-emerald-700 flex items-center gap-1 hover:underline"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Atur
-            </button>
+        {/* ANNOUNCEMENT / BANNER CAROUSEL */}
+        <div
+          onClick={() => showToast('Detail Kegiatan: Gotong Royong Minggu Pagi jam 07:00')}
+          className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-xl p-3.5 text-white shadow-sm flex items-center justify-between cursor-pointer hover:opacity-95 active:scale-[0.99] transition border border-emerald-500/30"
+        >
+          <div className="space-y-0.5">
+            <div className="inline-block bg-amber-400 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+              Kegiatan Warga
+            </div>
+            <h4 className="text-xs font-bold leading-tight">Gotong Royong Minggu Ini!</h4>
+            <p className="text-[11px] text-emerald-100">Dapatkan Poin Keaktifan Warga &gt;</p>
           </div>
-
-          {/* Grid Items (8 Modules in 4x2 grid) */}
-          <div className="grid grid-cols-4 gap-y-4 gap-x-2">
-            {/* 1. RtQu */}
-            <button
-              onClick={onOpenRtQu}
-              className="flex flex-col items-center group active:scale-95 transition"
-              title="Buka Modul RtQu"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition shadow-xs">
-                <Home className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
-                RtQu
-              </span>
-            </button>
-
-            {/* 2. SiagaQu (Panic Button) */}
-            <button
-              onClick={onOpenSiagaQu}
-              className="flex flex-col items-center group relative active:scale-95 transition"
-              title="Buka Modul SiagaQu (Panic Button)"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 group-hover:scale-105 transition shadow-xs">
-                <Siren className="w-6 h-6" />
-              </div>
-              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-extrabold px-1 rounded-full">
-                SOS
-              </span>
-              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
-                SiagaQu
-              </span>
-            </button>
-
-            {/* 3. UsahaQu (BAKSO QU POS SYSTEM) */}
-            <button
-              onClick={onOpenUsahaQu}
-              className="flex flex-col items-center group relative active:scale-95 transition"
-              title="Buka POS Kasir Bakso Qu"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-100 via-teal-100 to-emerald-200 border-2 border-emerald-500 flex items-center justify-center text-emerald-800 group-hover:scale-105 transition shadow-md shadow-emerald-200/50">
-                <ShoppingBag className="w-6 h-6 text-emerald-700" />
-              </div>
-              {/* Highlight badge for Bakso Qu */}
-              <span className="absolute -top-1.5 -right-1 bg-emerald-700 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full shadow-xs uppercase tracking-tight">
-                POS
-              </span>
-              {activeOrderCount > 0 && (
-                <span className="absolute -top-1.5 -left-1 bg-rose-600 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
-                  {activeOrderCount}
-                </span>
-              )}
-              <span className="text-[11px] font-bold text-emerald-900 mt-1.5 text-center leading-tight flex items-center gap-0.5">
-                UsahaQu
-              </span>
-              <span className="text-[9px] text-emerald-600 font-semibold leading-none">
-                Bakso Qu
-              </span>
-            </button>
-
-            {/* 4. POS ModularQu (MODULAR VOICE POS SYSTEM) */}
-            <button
-              onClick={onOpenModularQu}
-              className="flex flex-col items-center group relative active:scale-95 transition"
-              title="Buka POS ModularQu (Voice AI Kasir)"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-100 via-emerald-100 to-emerald-200 border-2 border-emerald-500 flex items-center justify-center text-emerald-800 group-hover:scale-105 transition shadow-md shadow-emerald-200/50">
-                <Store className="w-6 h-6 text-emerald-700" />
-              </div>
-              <span className="absolute -top-1.5 -right-1 bg-teal-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded-full shadow-xs uppercase tracking-tight">
-                MODULAR
-              </span>
-              <span className="text-[11px] font-bold text-emerald-900 mt-1.5 text-center leading-tight flex items-center gap-0.5">
-                ModularQu
-              </span>
-              <span className="text-[9px] text-teal-600 font-semibold leading-none">
-                Voice POS
-              </span>
-            </button>
-
-            {/* 5. AreaQu */}
-            <button
-              onClick={onOpenAreaQu}
-              className="flex flex-col items-center group active:scale-95 transition"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 group-hover:scale-105 transition shadow-xs">
-                <MapPin className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
-                AreaQu
-              </span>
-            </button>
-
-            {/* 5. MuamalahQu */}
-            <button
-              onClick={onOpenMuamalahQu}
-              className="flex flex-col items-center group active:scale-95 transition"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition shadow-xs">
-                <HeartHandshake className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
-                MuamalahQu
-              </span>
-            </button>
-
-            {/* 6. ChatQu */}
-            <button
-              onClick={onOpenChatQu}
-              className="flex flex-col items-center group relative active:scale-95 transition"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-700 group-hover:scale-105 transition shadow-xs">
-                <MessageSquare className="w-6 h-6" />
-              </div>
-              <span className="absolute -top-1 right-1 bg-emerald-600 text-white text-[9px] font-bold px-1 rounded-full">
-                3
-              </span>
-              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
-                ChatQu
-              </span>
-            </button>
-
-            {/* 7. Setting */}
-            <button
-              onClick={() => onOpenEmptyModule('setting')}
-              className="flex flex-col items-center group active:scale-95 transition"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 group-hover:scale-105 transition shadow-xs">
-                <Settings className="w-6 h-6" />
-              </div>
-              <span className="text-[11px] font-medium text-slate-700 mt-1.5 text-center leading-tight">
-                Setting
-              </span>
-            </button>
-          </div>
-
-          {/* Indicator dots */}
-          <div className="flex justify-center items-center gap-1.5 mt-5">
-            <span className="w-5 h-1.5 bg-emerald-600 rounded-full"></span>
-            <span className="w-1.5 h-1.5 bg-emerald-200 rounded-full"></span>
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-amber-300" />
           </div>
         </div>
 

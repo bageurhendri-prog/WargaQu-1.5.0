@@ -437,11 +437,10 @@ export const UsahaQuView: React.FC<UsahaQuViewProps> = ({
       <div className="bg-gradient-to-r from-[#047857] via-[#059669] to-[#047857] text-white px-3.5 py-2.5 flex items-center justify-between shrink-0 shadow-sm border-b border-emerald-800">
         <button
           onClick={onBackToWarga}
-          className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition text-xs font-semibold text-emerald-100 hover:text-white"
+          className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition flex items-center justify-center text-emerald-100 hover:text-white"
           title="Kembali ke Beranda WargaQu"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Kembali ke WargaQu</span>
+          <ArrowLeft className="w-4 h-4" />
         </button>
 
         <div className="flex items-center gap-1.5">

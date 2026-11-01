@@ -10,6 +10,7 @@ import { MuamalahQuView } from './components/muamalahqu/MuamalahQuView';
 import { AreaQuView } from './components/areaqu/AreaQuView';
 import { ModularQuView } from './components/modularqu/ModularQuView';
 import { BantuanView } from './components/bantuan/BantuanView';
+import { LeluhurQuView } from './components/leluhurqu/LeluhurQuView';
 
 import {
   TableItem,
@@ -21,7 +22,7 @@ import {
 } from './types';
 import { StorageService } from './services/storage';
 
-type AppScreen = 'warga' | 'rtqu' | 'siagaqu' | 'chatqu' | 'muamalahqu' | 'areaqu' | 'usahaqu' | 'modularqu' | 'bantuan' | 'empty_module';
+type AppScreen = 'warga' | 'leluhurqu' | 'rtqu' | 'siagaqu' | 'chatqu' | 'muamalahqu' | 'areaqu' | 'usahaqu' | 'modularqu' | 'bantuan' | 'empty_module';
 
 export default function App() {
   // Screen Navigation State
@@ -116,6 +117,12 @@ export default function App() {
     };
   }, []);
 
+  const handleOpenLeluhurQu = () => {
+    setCurrentScreen('leluhurqu');
+    window.history.pushState({ screen: 'leluhurqu' }, '', '#leluhurqu');
+    showNotification('Membuka LeluhurQu: Silsilah & Medsos Keluarga');
+  };
+
   const handleOpenRtQu = () => {
     setCurrentScreen('rtqu');
     window.history.pushState({ screen: 'rtqu' }, '', '#rtqu');
@@ -160,6 +167,10 @@ export default function App() {
   };
 
   const handleOpenEmptyModule = (moduleId: string) => {
+    if (moduleId === 'leluhurqu') {
+      handleOpenLeluhurQu();
+      return;
+    }
     if (moduleId === 'chatqu') {
       handleOpenChatQu();
       return;
@@ -196,6 +207,7 @@ export default function App() {
       {/* Screen 1: WargaQu Mobile App Dashboard */}
       {currentScreen === 'warga' && (
         <WargaDashboard
+          onOpenLeluhurQu={handleOpenLeluhurQu}
           onOpenRtQu={handleOpenRtQu}
           onOpenSiagaQu={handleOpenSiagaQu}
           onOpenUsahaQu={handleOpenUsahaQu}
@@ -206,6 +218,14 @@ export default function App() {
           onOpenAreaQu={handleOpenAreaQu}
           onOpenEmptyModule={handleOpenEmptyModule}
           activeOrderCount={activeOrderCount}
+        />
+      )}
+
+      {/* Screen LeluhurQu (Silsilah & Medsos 2 Jalur Keluarga) */}
+      {currentScreen === 'leluhurqu' && (
+        <LeluhurQuView
+          onBackToWarga={handleBackToWarga}
+          showNotification={showNotification}
         />
       )}
 
