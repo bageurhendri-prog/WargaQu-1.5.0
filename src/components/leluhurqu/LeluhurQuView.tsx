@@ -502,8 +502,11 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<boolean>(false);
   const [kkRawPhoto, setKkRawPhoto] = useState<string | null>(null);
+  // Mode otomatis ganti kartu silsilah lama (default TRUE sesuai permintaan pengguna)
+  const [autoReplaceExisting, setAutoReplaceExisting] = useState<boolean>(true);
+  const [activeKkPreset, setActiveKkPreset] = useState<'hendriana' | 'ahmad_fauzi' | 'bambang_sutrisno'>('hendriana');
 
-  // Kartu Anggota Terdeteksi dari KK yang dapat diedit / digeser / ditukar
+  // Kartu Anggota Terdeteksi dari KK yang dapat diedit / digeser / ditukar / ditambah / dihapus
   const [scannedCards, setScannedCards] = useState<ScannedKKCard[]>([
     {
       id: 'kk_1',
@@ -728,55 +731,377 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     showNotification(`Posisi ${item.name} digeser! Garis konektor silsilah otomatis menyesuaikan.`);
   };
 
-  // Terapkan data hasil Scan KK & Pas Foto ke Silsilah Utama
-  const handleApplyKKToMainTree = () => {
-    setMembers(prev => {
-      const updated = [...prev];
-      scannedCards.forEach(c => {
-        const existIdx = updated.findIndex(m => m.name.toLowerCase() === c.name.toLowerCase());
-        if (existIdx >= 0) {
-          updated[existIdx] = {
-            ...updated[existIdx],
-            birthDate: c.birthDate,
-            birthYear: c.birthYear,
-            address: c.address,
-            photo: c.photo || updated[existIdx].photo,
-            binBinti: c.binBinti || updated[existIdx].binBinti
-          };
-        } else {
-          updated.push({
-            id: 'fam_kk_' + Date.now() + Math.random().toString(36).slice(2, 6),
-            name: c.name,
-            nickname: c.nickname,
-            binBinti: c.binBinti,
-            role: c.role,
-            kinshipTitle: c.role,
-            relation: c.role.includes('Anak') ? 'anak' : c.role.includes('Istri') ? 'ibu' : 'ayah',
-            trah: 'inti',
-            gender: c.gender,
-            birthYear: c.birthYear,
-            birthDate: c.birthDate,
-            status: 'Hidup',
-            address: c.address,
-            photo: c.photo
-          });
+  // Tambah baris anggota baru pada kartu Scan KK
+  const handleAddNewScannedCard = () => {
+    const childNum = scannedCards.filter(c => c.role.toLowerCase().includes('anak')).length + 1;
+    const parentName = scannedCards[0]?.name || 'Kepala Keluarga';
+    const newCard: ScannedKKCard = {
+      id: `kk_manual_${Date.now()}`,
+      name: `Anak ke-${childNum}`,
+      nickname: '',
+      binBinti: `bin/binti ${parentName}`,
+      role: `Anak ke-${childNum}`,
+      gender: 'L',
+      birthDate: '01/01/2020',
+      birthYear: '2020',
+      address: scannedCards[0]?.address || 'Alamat Keluarga'
+    };
+    setScannedCards(prev => [...prev, newCard]);
+    showNotification(`Baris anggota baru (Anak ke-${childNum}) ditambahkan!`);
+  };
+
+  // Hapus baris anggota dari kartu Scan KK
+  const handleDeleteScannedCard = (cardId: string) => {
+    if (scannedCards.length <= 1) {
+      showNotification('Minimal harus ada 1 anggota dalam KK.');
+      return;
+    }
+    setScannedCards(prev => prev.filter(c => c.id !== cardId));
+    showNotification('Baris anggota KK berhasil dihapus.');
+  };
+
+  // Muat Preset Template KK Siap Pakai
+  const handleLoadPresetKK = (key: 'hendriana' | 'ahmad_fauzi' | 'bambang_sutrisno') => {
+    setActiveKkPreset(key);
+    if (key === 'hendriana') {
+      setScannedCards([
+        {
+          id: 'kk_1',
+          name: 'Hendriana',
+          nickname: 'Bageur',
+          binBinti: 'bin Karta',
+          role: 'Kepala Keluarga',
+          gender: 'L',
+          birthDate: '15/06/1985',
+          birthYear: '1985',
+          address: 'Nanggerang Indah Residence Blok A No. 12'
+        },
+        {
+          id: 'kk_2',
+          name: 'Siti Nurhaliza',
+          nickname: 'Neng Siti',
+          binBinti: 'binti Suryana',
+          role: 'Istri',
+          gender: 'P',
+          birthDate: '22/09/1988',
+          birthYear: '1988',
+          address: 'Nanggerang Indah Residence Blok A No. 12'
+        },
+        {
+          id: 'kk_3',
+          name: 'Rizky Al-Fathir',
+          nickname: 'Iki',
+          binBinti: 'bin Hendriana',
+          role: 'Anak ke-1',
+          gender: 'L',
+          birthDate: '10/03/2012',
+          birthYear: '2012',
+          address: 'Nanggerang Indah Residence Blok A No. 12'
+        },
+        {
+          id: 'kk_4',
+          name: 'Nabila Zahra',
+          nickname: 'Bila',
+          binBinti: 'binti Hendriana',
+          role: 'Anak ke-2',
+          gender: 'P',
+          birthDate: '18/07/2016',
+          birthYear: '2016',
+          address: 'Nanggerang Indah Residence Blok A No. 12'
         }
-      });
+      ]);
+      showNotification('Template KK Asli: Kel. Hendriana dimuat.');
+    } else if (key === 'ahmad_fauzi') {
+      setScannedCards([
+        {
+          id: 'kk_af_1',
+          name: 'Drs. H. Ahmad Fauzi',
+          nickname: 'Kang Fauzi',
+          binBinti: 'bin H. Mansyur',
+          role: 'Kepala Keluarga',
+          gender: 'L',
+          birthDate: '12/04/1982',
+          birthYear: '1982',
+          address: 'Jl. Melati Raya No. 18, RT 03/RW 04'
+        },
+        {
+          id: 'kk_af_2',
+          name: 'Hj. Siti Rahmah',
+          nickname: 'Ummi Rahmah',
+          binBinti: 'binti H. Sulaeman',
+          role: 'Istri',
+          gender: 'P',
+          birthDate: '05/11/1985',
+          birthYear: '1985',
+          address: 'Jl. Melati Raya No. 18, RT 03/RW 04'
+        },
+        {
+          id: 'kk_af_3',
+          name: 'Muhammad Farhan Fauzi',
+          nickname: 'Farhan',
+          binBinti: 'bin Ahmad Fauzi',
+          role: 'Anak ke-1',
+          gender: 'L',
+          birthDate: '14/01/2010',
+          birthYear: '2010',
+          address: 'Jl. Melati Raya No. 18, RT 03/RW 04'
+        },
+        {
+          id: 'kk_af_4',
+          name: 'Aisyah Zahra Fauzi',
+          nickname: 'Zahra',
+          binBinti: 'binti Ahmad Fauzi',
+          role: 'Anak ke-2',
+          gender: 'P',
+          birthDate: '20/08/2015',
+          birthYear: '2015',
+          address: 'Jl. Melati Raya No. 18, RT 03/RW 04'
+        }
+      ]);
+      showNotification('Template KK Baru: Kel. Drs. H. Ahmad Fauzi dimuat!');
+    } else if (key === 'bambang_sutrisno') {
+      setScannedCards([
+        {
+          id: 'kk_bs_1',
+          name: 'Bambang Sutrisno, S.T.',
+          nickname: 'Mas Bambang',
+          binBinti: 'bin Sugeng',
+          role: 'Kepala Keluarga',
+          gender: 'L',
+          birthDate: '08/03/1980',
+          birthYear: '1980',
+          address: 'Perum Griya Asri Blok C2 No. 05'
+        },
+        {
+          id: 'kk_bs_2',
+          name: 'Sri Wahyuni, S.Pd.',
+          nickname: 'Mbak Yuni',
+          binBinti: 'binti Kartoharjo',
+          role: 'Istri',
+          gender: 'P',
+          birthDate: '19/06/1983',
+          birthYear: '1983',
+          address: 'Perum Griya Asri Blok C2 No. 05'
+        },
+        {
+          id: 'kk_bs_3',
+          name: 'Dimas Pratama',
+          nickname: 'Dimas',
+          binBinti: 'bin Bambang Sutrisno',
+          role: 'Anak ke-1',
+          gender: 'L',
+          birthDate: '02/05/2009',
+          birthYear: '2009',
+          address: 'Perum Griya Asri Blok C2 No. 05'
+        },
+        {
+          id: 'kk_bs_4',
+          name: 'Putri Anggraini',
+          nickname: 'Putri',
+          binBinti: 'binti Bambang Sutrisno',
+          role: 'Anak ke-2',
+          gender: 'P',
+          birthDate: '15/10/2013',
+          birthYear: '2013',
+          address: 'Perum Griya Asri Blok C2 No. 05'
+        },
+        {
+          id: 'kk_bs_5',
+          name: 'Bagas Ramadhan',
+          nickname: 'Bagas',
+          binBinti: 'bin Bambang Sutrisno',
+          role: 'Anak ke-3',
+          gender: 'L',
+          birthDate: '27/04/2019',
+          birthYear: '2019',
+          address: 'Perum Griya Asri Blok C2 No. 05'
+        }
+      ]);
+      showNotification('Template KK Baru: Kel. Bambang Sutrisno (3 Anak) dimuat!');
+    }
+  };
+
+  // Terapkan data hasil Scan KK & Pas Foto ke Silsilah Utama (AUTO-GANTI CARD YANG SUDAH ADA)
+  const handleApplyKKToMainTree = () => {
+    if (!scannedCards.length) {
+      showNotification('Tidak ada kartu keluarga yang dapat diterapkan.');
+      return;
+    }
+
+    setMembers(prev => {
+      let updated = [...prev];
+
+      if (autoReplaceExisting) {
+        // Cari kandidat Kepala Keluarga, Istri, dan Anak dari scannedCards
+        const headCard = scannedCards.find(c => c.role.toLowerCase().includes('kepala') || c.role.toLowerCase().includes('ayah')) || scannedCards[0];
+        const spouseCard = scannedCards.find(c => (c.role.toLowerCase().includes('istri') || c.role.toLowerCase().includes('ibu')) && c.id !== headCard.id) 
+          || (scannedCards.length > 1 && scannedCards[1].id !== headCard.id ? scannedCards[1] : undefined);
+        const childCards = scannedCards.filter(c => c.id !== headCard.id && (!spouseCard || c.id !== spouseCard.id));
+
+        // 1. Ganti Card Kepala Keluarga Inti (Ayah - id: '1' atau first trah 'inti' relation 'ayah')
+        let headIdx = updated.findIndex(m => m.id === '1' || (m.trah === 'inti' && (m.relation === 'ayah' || m.role?.toLowerCase().includes('kepala'))));
+        const headId = headIdx >= 0 ? updated[headIdx].id : '1';
+
+        // 2. Ganti Card Istri / Ibu Inti (id: '2' atau first trah 'inti' relation 'ibu')
+        let spouseIdx = updated.findIndex(m => m.id === '2' || (m.trah === 'inti' && (m.relation === 'ibu' || m.role?.toLowerCase().includes('istri'))));
+        const spouseId = spouseIdx >= 0 ? updated[spouseIdx].id : '2';
+
+        // 3. Buat Card Anak-Anak baru dan hubungkan ke ID
+        const newChildIds: string[] = [];
+        const newChildMembers: FamilyMember[] = childCards.map((c, idx) => {
+          const cid = `child_kk_${idx + 1}_${Date.now().toString(36)}`;
+          newChildIds.push(cid);
+          return {
+            id: cid,
+            name: c.name,
+            nickname: c.nickname || undefined,
+            binBinti: c.binBinti || (headCard ? (c.gender === 'L' ? `bin ${headCard.name}` : `binti ${headCard.name}`) : undefined),
+            kinshipTitle: c.role,
+            role: c.role,
+            relation: 'anak' as const,
+            trah: 'inti' as const,
+            gender: c.gender,
+            birthYear: c.birthYear || '2020',
+            birthDate: c.birthDate,
+            status: 'Hidup' as const,
+            origin: headCard?.address ? headCard.address.split(',')[0] : 'Bogor',
+            address: c.address || headCard?.address,
+            photo: c.photo
+          };
+        });
+
+        // Hapus card anak-anak lama dari trah 'inti' agar diganti total dengan yang baru
+        updated = updated.filter(m => !(m.trah === 'inti' && m.relation === 'anak'));
+
+        // Update / Ganti Kepala Keluarga (Ayah)
+        const currentHead = headIdx >= 0 ? updated[headIdx] : null;
+        const updatedHead: FamilyMember = {
+          id: headId,
+          name: headCard.name,
+          nickname: headCard.nickname || undefined,
+          binBinti: headCard.binBinti || undefined,
+          kinshipTitle: 'Kepala Keluarga',
+          role: 'Ayah / Kepala Keluarga',
+          relation: 'ayah' as const,
+          trah: 'inti' as const,
+          gender: headCard.gender || 'L',
+          birthYear: headCard.birthYear || '1985',
+          birthDate: headCard.birthDate,
+          status: 'Hidup' as const,
+          origin: currentHead?.origin || 'Kuningan / Bogor',
+          address: headCard.address,
+          notes: `Kartu diperbarui otomatis dari hasil Scan KK (${headCard.name})`,
+          photo: headCard.photo || currentHead?.photo,
+          spouses: spouseCard ? [
+            {
+              id: 'sp_1',
+              name: spouseCard.name,
+              nickname: spouseCard.nickname || undefined,
+              binBinti: spouseCard.binBinti || undefined,
+              gender: spouseCard.gender || 'P',
+              origin: 'Bogor',
+              birthYear: spouseCard.birthYear || '1988',
+              status: 'Hidup' as const,
+              marriageNote: 'Istri Tercatat di KK',
+              childrenIds: newChildIds,
+              photo: spouseCard.photo
+            }
+          ] : currentHead?.spouses
+        };
+
+        if (headIdx >= 0) {
+          updated[headIdx] = updatedHead;
+        } else {
+          updated.unshift(updatedHead);
+        }
+
+        // Update / Ganti Istri / Ibu
+        if (spouseCard) {
+          spouseIdx = updated.findIndex(m => m.id === spouseId || (m.trah === 'inti' && (m.relation === 'ibu' || m.role?.toLowerCase().includes('istri'))));
+          const currentSpouse = spouseIdx >= 0 ? updated[spouseIdx] : null;
+          const updatedSpouse: FamilyMember = {
+            id: spouseId,
+            name: spouseCard.name,
+            nickname: spouseCard.nickname || undefined,
+            binBinti: spouseCard.binBinti || undefined,
+            kinshipTitle: 'Ibu (Istri)',
+            role: spouseCard.role || 'Ibu Rumah Tangga',
+            relation: 'ibu' as const,
+            trah: 'inti' as const,
+            gender: spouseCard.gender || 'P',
+            birthYear: spouseCard.birthYear || '1988',
+            birthDate: spouseCard.birthDate,
+            status: 'Hidup' as const,
+            origin: currentSpouse?.origin || 'Dramaga, Bogor',
+            address: spouseCard.address || headCard.address,
+            photo: spouseCard.photo || currentSpouse?.photo
+          };
+
+          if (spouseIdx >= 0) {
+            updated[spouseIdx] = updatedSpouse;
+          } else {
+            const hIdx = updated.findIndex(m => m.id === headId);
+            updated.splice(hIdx + 1, 0, updatedSpouse);
+          }
+        }
+
+        // Tambahkan anak-anak baru
+        updated.push(...newChildMembers);
+
+      } else {
+        // Mode Penggabungan Biasa (jika mode auto-replace dimatikan user)
+        scannedCards.forEach(c => {
+          const existIdx = updated.findIndex(m => m.name.toLowerCase() === c.name.toLowerCase());
+          if (existIdx >= 0) {
+            updated[existIdx] = {
+              ...updated[existIdx],
+              birthDate: c.birthDate,
+              birthYear: c.birthYear,
+              address: c.address,
+              photo: c.photo || updated[existIdx].photo,
+              binBinti: c.binBinti || updated[existIdx].binBinti
+            };
+          } else {
+            updated.push({
+              id: 'fam_kk_' + Date.now() + Math.random().toString(36).slice(2, 6),
+              name: c.name,
+              nickname: c.nickname,
+              binBinti: c.binBinti,
+              role: c.role,
+              kinshipTitle: c.role,
+              relation: c.role.toLowerCase().includes('anak') ? 'anak' : c.role.toLowerCase().includes('istri') ? 'ibu' : 'ayah',
+              trah: 'inti',
+              gender: c.gender,
+              birthYear: c.birthYear,
+              birthDate: c.birthDate,
+              status: 'Hidup',
+              address: c.address,
+              photo: c.photo
+            });
+          }
+        });
+      }
+
       return updated;
     });
 
     setShowScanKKModal(false);
     setScanResult(false);
-    showNotification('Struktur kartu & foto pas foto berhasil disinkronkan ke pohon silsilah!');
+    showNotification(
+      autoReplaceExisting
+        ? 'Sukses! Kartu keluarga inti (Ayah, Ibu & Anak-anak) di silsilah utama telah otomatis diganti dengan data KK hasil scan.'
+        : 'Data hasil scan KK berhasil disinkronkan ke pohon silsilah!'
+    );
   };
 
-  // Scan KK Simulator dengan Auto-Text Parsing
+  // Scan KK Simulator dengan Auto-Text Parsing & Auto-Kompresi
   const handleStartScanKK = async (e?: React.ChangeEvent<HTMLInputElement>) => {
     const file = e?.target?.files?.[0];
+    let photoData: string | null = null;
     if (file) {
       try {
-        const compressed = await compressImage(file, 600, 0.85);
-        setKkRawPhoto(compressed);
+        photoData = await compressImage(file, 600, 0.85);
+        setKkRawPhoto(photoData);
       } catch (err) {
         console.error(err);
       }
@@ -786,8 +1111,63 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     setTimeout(() => {
       setIsScanning(false);
       setScanResult(true);
-      showNotification('OCR Selesai: 4 Kartu Keluarga otomatis dibuat dengan teks nama, alamat, tgl lahir!');
-    }, 1600);
+
+      // Otomatis hasilkan kartu-kartu baru dari hasil scan dokumen
+      const timestamp = Date.now();
+      const detectedAddress = file
+        ? `Nanggerang Indah Residence Blok ${String.fromCharCode(65 + Math.floor(Math.random() * 6))} No. ${Math.floor(Math.random() * 30) + 1}`
+        : 'Jl. Merpati Indah No. 24, RT 02/RW 05';
+
+      setScannedCards([
+        {
+          id: `kk_detected_${timestamp}_1`,
+          name: 'Drs. H. Ahmad Fauzi',
+          nickname: 'Kang Fauzi',
+          binBinti: 'bin H. Mansyur',
+          role: 'Kepala Keluarga',
+          gender: 'L',
+          birthDate: '12/04/1982',
+          birthYear: '1982',
+          address: detectedAddress,
+          photo: photoData || undefined
+        },
+        {
+          id: `kk_detected_${timestamp}_2`,
+          name: 'Hj. Siti Rahmah',
+          nickname: 'Ummi Rahmah',
+          binBinti: 'binti H. Sulaeman',
+          role: 'Istri',
+          gender: 'P',
+          birthDate: '05/11/1985',
+          birthYear: '1985',
+          address: detectedAddress
+        },
+        {
+          id: `kk_detected_${timestamp}_3`,
+          name: 'Muhammad Farhan Fauzi',
+          nickname: 'Farhan',
+          binBinti: 'bin Ahmad Fauzi',
+          role: 'Anak ke-1',
+          gender: 'L',
+          birthDate: '14/01/2010',
+          birthYear: '2010',
+          address: detectedAddress
+        },
+        {
+          id: `kk_detected_${timestamp}_4`,
+          name: 'Aisyah Zahra Fauzi',
+          nickname: 'Zahra',
+          binBinti: 'binti Ahmad Fauzi',
+          role: 'Anak ke-2',
+          gender: 'P',
+          birthDate: '20/08/2015',
+          birthYear: '2015',
+          address: detectedAddress
+        }
+      ]);
+
+      showNotification('OCR Selesai: Data kartu KK baru berhasil dideteksi! Tekan "Terapkan" untuk auto-ganti kartu silsilah.');
+    }, 1200);
   };
 
   // Add Member
@@ -896,6 +1276,11 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     showNotification(`Postingan baru berhasil dibagikan di ${newPost.trahName}!`);
   };
 
+  // Anggota Pokok Keluarga Inti (Dinamis dari state members)
+  const mainHead = members.find(m => m.trah === 'inti' && (m.relation === 'ayah' || m.role?.toLowerCase().includes('kepala'))) || members.find(m => m.id === '1') || members[0];
+  const mainSpouse = members.find(m => m.trah === 'inti' && (m.relation === 'ibu' || m.role?.toLowerCase().includes('istri'))) || members.find(m => m.id === '2');
+  const mainChildren = members.filter(m => m.trah === 'inti' && m.relation === 'anak');
+
   // Filtered members for Tree View
   const displayedMembers = members.filter(m => {
     if (treeFilter === 'all') return true;
@@ -969,23 +1354,25 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               <div className="flex items-center justify-between pb-3 border-b border-emerald-500/40">
                 <div className="flex items-center space-x-3">
                   <div className="w-13 h-13 bg-emerald-800 rounded-full flex items-center justify-center text-lg font-bold border-2 border-[#5eead4] shadow text-white shrink-0 overflow-hidden">
-                    {members[0]?.photo ? (
-                      <img src={members[0].photo} alt="Hendriana" className="w-full h-full object-cover" />
+                    {mainHead?.photo ? (
+                      <img src={mainHead.photo} alt={mainHead.name} className="w-full h-full object-cover" />
                     ) : (
-                      'HB'
+                      (mainHead?.name || 'HB').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
                     )}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <h2 className="font-bold text-base text-white">Hendriana</h2>
-                      <span className="text-[10px] bg-emerald-950/60 text-[#5eead4] px-1.5 py-0.2 rounded font-medium">
-                        "Bageur"
-                      </span>
+                      <h2 className="font-bold text-base text-white">{mainHead?.name || 'Kepala Keluarga'}</h2>
+                      {mainHead?.nickname && (
+                        <span className="text-[10px] bg-emerald-950/60 text-[#5eead4] px-1.5 py-0.2 rounded font-medium">
+                          "{mainHead.nickname}"
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-emerald-200 font-mono">ID: HQ-2026-001</p>
                     <p className="text-[10px] text-emerald-100 flex items-center gap-1 mt-0.5">
                       <MapPin className="w-3 h-3 text-[#5eead4]" />
-                      Nanggerang Indah Residence, Blok A No. 12
+                      <span className="truncate max-w-[190px]">{mainHead?.address || 'Nanggerang Indah Residence Blok A No. 12'}</span>
                     </p>
                   </div>
                 </div>
@@ -1766,14 +2153,95 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 </div>
               )}
 
-              {/* SECTION: KARTU-KARTU HASIL SCAN (BISA DIEDIT, DITUKAR POSISI, PAS FOTO) */}
+              {/* SECTION: MODE AUTO-GANTI CARD & TEMPLATE PRESET */}
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="autoReplaceToggle"
+                    checked={autoReplaceExisting}
+                    onChange={e => setAutoReplaceExisting(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-emerald-700 rounded focus:ring-emerald-500 border-gray-300 cursor-pointer"
+                  />
+                  <label htmlFor="autoReplaceToggle" className="cursor-pointer flex-1">
+                    <span className="text-xs font-bold text-emerald-950 flex items-center justify-between">
+                      <span>Otomatis Ganti / Timpa Kartu Silsilah yang Ada</span>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                        autoReplaceExisting ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-700'
+                      }`}>
+                        {autoReplaceExisting ? 'AKTIF (AUTO-GANTI)' : 'NON-AKTIF'}
+                      </span>
+                    </span>
+                    <p className="text-[10px] text-emerald-800 leading-tight mt-0.5">
+                      {autoReplaceExisting
+                        ? 'Kartu keluarga inti (Kepala Keluarga, Istri, dan Anak-anak) di silsilah utama akan langsung diganti dengan data KK ini.'
+                        : 'Data KK hanya akan digabungkan/ditambahkan ke daftar tanpa mengganti kartu yang sudah ada.'}
+                    </p>
+                  </label>
+                </div>
+
+                {/* Quick Presets KK */}
+                <div className="pt-1.5 border-t border-emerald-200/80 space-y-1">
+                  <div className="flex justify-between items-center text-[10px] text-emerald-900 font-bold">
+                    <span>PILIH CONTOH / PRESET DOKUMEN KK:</span>
+                    <span className="text-[9px] text-emerald-700 font-mono">1-Klik Ganti Data</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => handleLoadPresetKK('hendriana')}
+                      className={`py-1.5 px-1 rounded-lg border font-bold text-center transition ${
+                        activeKkPreset === 'hendriana'
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
+                          : 'bg-white text-slate-700 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                    >
+                      KK Hendriana
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleLoadPresetKK('ahmad_fauzi')}
+                      className={`py-1.5 px-1 rounded-lg border font-bold text-center transition ${
+                        activeKkPreset === 'ahmad_fauzi'
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
+                          : 'bg-white text-slate-700 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                    >
+                      KK Ahmad Fauzi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleLoadPresetKK('bambang_sutrisno')}
+                      className={`py-1.5 px-1 rounded-lg border font-bold text-center transition ${
+                        activeKkPreset === 'bambang_sutrisno'
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
+                          : 'bg-white text-slate-700 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                    >
+                      KK Bambang (5 Org)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION: KARTU-KARTU HASIL SCAN (BISA DIEDIT, DITUKAR POSISI, PAS FOTO, TAMBAH, HAPUS) */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1">
                     <Users className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Kartu Anggota Terdeteksi ({scannedCards.length})</span>
                   </h4>
-                  <span className="text-[10px] text-emerald-700 font-medium">Bisa Tukar / Pasang Foto</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAddNewScannedCard}
+                      className="bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition"
+                      title="Tambah Anggota KK Baru"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tambah Anggota</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1782,9 +2250,9 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                       key={card.id}
                       className="bg-white border border-emerald-200 rounded-xl p-3 shadow-2xs space-y-2 hover:border-emerald-400 transition"
                     >
-                      {/* Top Row: Pas Foto / Selfie, Nama, Peran & Tombol Geser */}
+                      {/* Top Row: Pas Foto / Selfie, Nama, Peran & Tombol Aksi */}
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center space-x-2.5">
+                        <div className="flex items-center space-x-2.5 flex-1 min-w-0">
                           {/* Pas Foto Wajah Auto-Kompres */}
                           <div className="relative group shrink-0">
                             <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 font-bold text-xs overflow-hidden shadow-2xs">
@@ -1808,40 +2276,69 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                             </label>
                           </div>
 
-                          {/* Info Pokok */}
-                          <div>
+                          {/* Info Pokok: Nama, Peran Dropdown, Bin/Binti */}
+                          <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-1.5">
                               <input
                                 type="text"
                                 value={card.name}
                                 onChange={e => handleUpdateCardField(card.id, 'name', e.target.value)}
-                                className="font-bold text-xs text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-600 focus:outline-none w-36"
+                                className="font-bold text-xs text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-600 focus:outline-none w-full"
+                                placeholder="Nama Lengkap"
                               />
                             </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
-                                {card.role}
-                              </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <select
+                                value={card.role}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  handleUpdateCardField(card.id, 'role', val);
+                                  if (val === 'Kepala Keluarga') {
+                                    handleUpdateCardField(card.id, 'gender', 'L');
+                                  } else if (val === 'Istri') {
+                                    handleUpdateCardField(card.id, 'gender', 'P');
+                                  }
+                                }}
+                                className="text-[10px] bg-emerald-100 text-emerald-900 font-bold rounded px-1.5 py-0.5 border border-emerald-300 focus:outline-none"
+                              >
+                                <option value="Kepala Keluarga">Kepala Keluarga</option>
+                                <option value="Istri">Istri</option>
+                                <option value="Anak ke-1">Anak ke-1</option>
+                                <option value="Anak ke-2">Anak ke-2</option>
+                                <option value="Anak ke-3">Anak ke-3</option>
+                                <option value="Anak ke-4">Anak ke-4</option>
+                                <option value="Anak ke-5">Anak ke-5</option>
+                                <option value="Famili Lain">Famili Lain</option>
+                              </select>
                               <input
                                 type="text"
                                 value={card.binBinti}
                                 onChange={e => handleUpdateCardField(card.id, 'binBinti', e.target.value)}
-                                placeholder="bin/binti"
-                                className="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-600 focus:outline-none w-24"
+                                placeholder="bin/binti..."
+                                className="text-[10px] text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-600 focus:outline-none w-28"
                               />
                             </div>
                           </div>
                         </div>
 
-                        {/* Tombol Pindah / Tukar Urutan */}
-                        <div className="flex flex-col items-center gap-1">
+                        {/* Tombol Aksi: Pindah Urutan & Hapus Baris */}
+                        <div className="flex items-center gap-1">
                           <button
+                            type="button"
                             onClick={() => handleMoveCard(idx, 'up')}
                             disabled={idx === 0}
                             className="p-1 text-slate-400 hover:text-emerald-700 disabled:opacity-20"
-                            title="Geser ke Atas"
+                            title="Tukar Posisi ke Atas"
                           >
                             <ArrowUpDown className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteScannedCard(card.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition"
+                            title="Hapus Anggota Ini dari KK"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -1853,7 +2350,14 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                           <input
                             type="text"
                             value={card.birthDate}
-                            onChange={e => handleUpdateCardField(card.id, 'birthDate', e.target.value)}
+                            onChange={e => {
+                              const val = e.target.value;
+                              handleUpdateCardField(card.id, 'birthDate', val);
+                              const yearMatch = val.match(/\b(19\d\d|20\d\d)\b/);
+                              if (yearMatch) {
+                                handleUpdateCardField(card.id, 'birthYear', yearMatch[1]);
+                              }
+                            }}
                             className="font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-600 focus:outline-none w-full"
                           />
                         </div>
@@ -1909,9 +2413,9 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                   <div className="w-0.5 h-3 bg-emerald-400"></div>
 
                   {/* Row Anak-Anak */}
-                  <div className="flex items-center justify-center gap-3 pt-1 border-t border-emerald-300 w-full">
+                  <div className="flex items-center justify-center gap-3 pt-1 border-t border-emerald-300 w-full overflow-x-auto">
                     {scannedCards.slice(2).map(child => (
-                      <div key={child.id} className="flex flex-col items-center">
+                      <div key={child.id} className="flex flex-col items-center shrink-0">
                         <div className="w-8 h-8 rounded-full border border-emerald-500 overflow-hidden bg-emerald-50 flex items-center justify-center font-bold text-[10px] text-emerald-800 shadow-2xs">
                           {child.photo ? (
                             <img src={child.photo} alt={child.name} className="w-full h-full object-cover" />
@@ -1933,13 +2437,19 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             {/* Modal Actions */}
             <div className="pt-2 border-t border-slate-100 flex gap-2">
               <button
+                type="button"
                 onClick={handleApplyKKToMainTree}
-                className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5"
+                className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5 active:scale-98"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Terapkan ke Pohon Silsilah Utama</span>
+                <span>
+                  {autoReplaceExisting
+                    ? 'Terapkan (Auto-Ganti Kartu Silsilah)'
+                    : 'Terapkan ke Pohon Silsilah'}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setShowScanKKModal(false)}
                 className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
               >
@@ -2202,44 +2712,60 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                     </p>
                   </div>
 
-                  {/* Unit Keluarga 2: Hendriana & Siti Nurhaliza */}
+                  {/* Unit Keluarga 2: Keluarga Inti (Dinamis dari mainHead, mainSpouse & mainChildren) */}
                   <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-emerald-900">Unit Keluarga Inti Hendriana</span>
-                      <span className="text-[9px] text-slate-500">Nanggerang Indah Residence</span>
+                      <span className="text-[10px] font-bold text-emerald-900">
+                        Unit Keluarga Inti: {mainHead?.name || 'Kepala Keluarga'}
+                      </span>
+                      <span className="text-[9px] text-slate-500 max-w-[150px] truncate">
+                        {mainHead?.address || 'Nanggerang Indah Residence'}
+                      </span>
                     </div>
                     <div className="flex items-center justify-around bg-emerald-50/60 p-2 rounded-lg">
                       <div className="flex items-center gap-2">
                         <div className="w-10 h-10 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center text-xs overflow-hidden">
-                          {members[0]?.photo ? <img src={members[0].photo} alt="Hendriana" className="w-full h-full object-cover" /> : 'HB'}
+                          {mainHead?.photo ? (
+                            <img src={mainHead.photo} alt={mainHead.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (mainHead?.name || 'HB').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                          )}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-900">Hendriana</p>
-                          <p className="text-[9px] text-slate-500">Lahir 1985</p>
+                          <p className="text-xs font-bold text-slate-900">{mainHead?.name || 'Kepala Keluarga'}</p>
+                          <p className="text-[9px] text-slate-500">Lahir {mainHead?.birthYear || '1985'}</p>
                         </div>
                       </div>
                       <span className="text-emerald-700 font-bold text-xs">+</span>
                       <div className="flex items-center gap-2">
                         <div className="w-10 h-10 rounded-full bg-pink-600 text-white font-bold flex items-center justify-center text-xs overflow-hidden">
-                          {members[1]?.photo ? <img src={members[1].photo} alt="Siti" className="w-full h-full object-cover" /> : 'SN'}
+                          {mainSpouse?.photo ? (
+                            <img src={mainSpouse.photo} alt={mainSpouse.name} className="w-full h-full object-cover" />
+                          ) : (
+                            (mainSpouse?.name || 'SN').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                          )}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-900">Siti Nurhaliza</p>
-                          <p className="text-[9px] text-slate-500">Lahir 1988</p>
+                          <p className="text-xs font-bold text-slate-900">{mainSpouse?.name || 'Istri'}</p>
+                          <p className="text-[9px] text-slate-500">Lahir {mainSpouse?.birthYear || '1988'}</p>
                         </div>
                       </div>
                     </div>
                     <div className="pt-1">
-                      <span className="text-[9px] font-bold text-slate-700 block mb-1">Daftar Anak Terdaftar:</span>
+                      <span className="text-[9px] font-bold text-slate-700 block mb-1">
+                        Daftar Anak Terdaftar ({mainChildren.length} Orang):
+                      </span>
                       <div className="grid grid-cols-2 gap-1.5">
-                        <div className="bg-white p-1.5 rounded border border-emerald-100 flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-bold flex items-center justify-center">1</span>
-                          <span className="text-[10px] font-bold text-slate-800">Rizky Al-Fathir (2012)</span>
-                        </div>
-                        <div className="bg-white p-1.5 rounded border border-emerald-100 flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-bold flex items-center justify-center">2</span>
-                          <span className="text-[10px] font-bold text-slate-800">Nabila Zahra (2016)</span>
-                        </div>
+                        {mainChildren.map((ch, idx) => (
+                          <div key={ch.id} className="bg-white p-1.5 rounded border border-emerald-100 flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-bold flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-800 truncate">
+                              {ch.name} ({ch.birthYear})
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
