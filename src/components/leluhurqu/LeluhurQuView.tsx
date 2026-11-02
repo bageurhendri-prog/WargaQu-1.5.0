@@ -66,7 +66,7 @@ export interface FamilyMember {
   kinshipTitle?: string; // Aki, Nini, Uyut, Uwa, Mang, Bibi, dll.
   role: string;
   relation: 'ayah' | 'ibu' | 'anak' | 'kakek' | 'nenek' | 'buyut' | 'paman_bibi' | 'cucu';
-  trah: 'ayah' | 'ibu' | 'inti';
+  trah: 'ayah' | 'ibu' | 'inti' | 'ayah_pasangan' | 'ibu_pasangan';
   gender: 'L' | 'P';
   birthYear: string;
   deathYear?: string;
@@ -75,6 +75,9 @@ export interface FamilyMember {
   phone?: string;
   notes?: string;
   spouses?: FamilySpouse[];
+  parentName?: string;
+  kakekName?: string;
+  uyutName?: string;
 }
 
 interface CommentItem {
@@ -88,7 +91,7 @@ interface PostItem {
   id: string;
   authorName: string;
   authorRole: string;
-  trah: 'ayah' | 'ibu';
+  trah: 'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan';
   trahName: string;
   timeAgo: string;
   content: string;
@@ -101,297 +104,467 @@ interface PostItem {
 }
 
 const DEFAULT_MEMBERS: FamilyMember[] = [
-  // Generasi 0: Diri Sendiri (Ego) & Istri
+  // 1. PUSAT KUADRAN: UYUT (Generasi +3)
   {
-    id: '1',
-    name: 'Hendriana',
-    nickname: 'Bageur',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Kepala Keluarga',
-    role: 'Ayah / Kepala Keluarga',
-    relation: 'ayah',
-    trah: 'inti',
-    gender: 'L',
-    birthYear: '1985',
-    status: 'Hidup',
-    origin: 'Kuningan / Bogor',
-    notes: 'Pemilik silsilah, tinggal di Nanggerang Indah Residence',
-    spouses: [
-      {
-        id: 'sp_1',
-        name: 'Siti Nurhaliza',
-        nickname: 'Neng Siti',
-        binBinti: 'binti Suryana',
-        gender: 'P',
-        origin: 'Bogor',
-        birthYear: '1988',
-        status: 'Hidup',
-        marriageNote: 'Istri Pertama (Pernikahan 2011)',
-        childrenIds: ['3', '4']
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Siti Nurhaliza',
-    nickname: 'Neng Siti',
-    binBinti: 'binti Suryana',
-    kinshipTitle: 'Ibu (Istri)',
-    role: 'Ibu Rumah Tangga',
-    relation: 'ibu',
-    trah: 'inti',
-    gender: 'P',
-    birthYear: '1988',
-    status: 'Hidup',
-    origin: 'Dramaga, Bogor'
-  },
-  // Generasi -1: Anak-anak
-  {
-    id: '3',
-    name: 'Rizky Al-Fathir',
-    nickname: 'Iki',
-    binBinti: 'bin Hendriana',
-    kinshipTitle: 'Anak Pertama (Cikal)',
-    role: 'Putra Sulung',
-    relation: 'anak',
-    trah: 'inti',
-    gender: 'L',
-    birthYear: '2012',
-    status: 'Hidup',
-    origin: 'Bogor'
-  },
-  {
-    id: '4',
-    name: 'Nabila Zahra',
-    nickname: 'Bila',
-    binBinti: 'binti Hendriana',
-    kinshipTitle: 'Anak Kedua (Bungsu)',
-    role: 'Putri Bungsu',
-    relation: 'anak',
-    trah: 'inti',
-    gender: 'P',
-    birthYear: '2016',
-    status: 'Hidup',
-    origin: 'Bogor'
-  },
-  // Generasi +1: Ayah Hendriana & Trah Kuningan
-  {
-    id: '5',
-    name: 'Abah Karta',
-    nickname: 'Aki Karta',
-    binBinti: 'bin Abdul Ghani',
-    kinshipTitle: 'Aki (Kakek Paternal)',
-    role: 'Sesepuh Trah Kuningan',
-    relation: 'kakek',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1948',
-    status: 'Hidup',
-    origin: 'Cilimus, Kuningan',
-    notes: 'Pernah memiliki 2 jalur keluarga besar di Kuningan & Cirebon',
-    spouses: [
-      {
-        id: 'sp_karta_1',
-        name: 'Emak Rohanah',
-        nickname: 'Nini Rohanah',
-        binBinti: 'binti Mansur',
-        gender: 'P',
-        origin: 'Cilimus, Kuningan',
-        birthYear: '1952',
-        deathYear: '2019',
-        status: 'Almarhum',
-        marriageNote: 'Istri Pertama (Ibu Kandung Hendriana)',
-        childrenIds: ['1', '7']
-      },
-      {
-        id: 'sp_karta_2',
-        name: 'Mak Eni',
-        nickname: 'Nini Eni',
-        binBinti: 'binti Sanusi',
-        gender: 'P',
-        origin: 'Cirebon',
-        birthYear: '1958',
-        status: 'Hidup',
-        marriageNote: 'Istri Kedua (Jalur Saudara Tiri)',
-        childrenIds: ['11']
-      }
-    ]
-  },
-  {
-    id: '6',
-    name: 'Emak Rohanah',
-    nickname: 'Nini Rohanah',
-    binBinti: 'binti Mansur',
-    kinshipTitle: 'Nini (Nenek Paternal)',
-    role: 'Ibu dari Hendriana',
-    relation: 'nenek',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '1952',
-    deathYear: '2019',
-    status: 'Almarhum',
-    origin: 'Cilimus, Kuningan',
-    notes: 'Almarhumah wafat di Kuningan. Al-Fatihah.'
-  },
-  {
-    id: '7',
-    name: 'Mang Dede Supriatna',
-    nickname: 'Mang Dede',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Mang (Paman / Adik Ayah)',
-    role: 'Paman',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1990',
-    status: 'Hidup',
-    origin: 'Kuningan'
-  },
-  {
-    id: '11',
-    name: 'Asep Saepulloh',
-    nickname: 'Kang Asep',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Uwa / Saudara Seayah (Jalur Mak Eni)',
-    role: 'Kakak Tiri Seayah',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1982',
-    status: 'Hidup',
-    origin: 'Cirebon'
-  },
-  // Generasi +2: Buyut Trah Ayah (Leluhur Tertinggi)
-  {
-    id: '12',
+    id: 'uyut-ghani',
     name: 'Kyai Abdul Ghani',
     nickname: 'Uyut Ghani',
     binBinti: 'bin Hasanudin',
-    kinshipTitle: 'Uyut (Buyut Paternal)',
-    role: 'Tokoh Pendiri Pesantren Lembur',
+    kinshipTitle: 'Pusat: Uyut / Aki Moyang',
+    role: 'Sesepuh Pendiri Trah',
     relation: 'buyut',
     trah: 'ayah',
     gender: 'L',
     birthYear: '1918',
     deathYear: '1994',
     status: 'Almarhum',
-    origin: 'Kuningan',
-    notes: 'Makam di Kompleks Pasarean Cilimus'
+    origin: 'Cilimus, Kuningan',
+    notes: 'Pusat Kuadran Trah Ayah. Makam di Pasarean Cilimus.'
   },
-  // Generasi +1: Keluarga Ibu (Trah Bogor)
+
+  // 2. ORBIT 1: 3 KAKEK (A, B, C)
   {
-    id: '8',
-    name: 'Abah Suryana',
-    nickname: 'Aki Surya',
-    binBinti: 'bin Hasan',
-    kinshipTitle: 'Aki (Kakek Maternal)',
-    role: 'Ayah dari Siti Nurhaliza',
+    id: 'kakek-a',
+    name: 'Kakek A (Sulung)',
+    nickname: 'Aki Kolot',
+    binBinti: 'bin Abdul Ghani',
+    kinshipTitle: 'Orbit 1: Kakek A (Anak 1)',
+    role: 'Kakek Tertua',
     relation: 'kakek',
-    trah: 'ibu',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1942',
+    deathYear: '2015',
+    status: 'Almarhum',
+    origin: 'Kuningan',
+    uyutName: 'Kyai Abdul Ghani'
+  },
+  {
+    id: 'kakek-b',
+    name: 'Kakek B (Poros Utama Ayah)',
+    nickname: 'Abah Sepuh',
+    binBinti: 'bin Abdul Ghani',
+    kinshipTitle: 'Orbit 1: Kakek B (Anak 2 - Poros)',
+    role: 'Kakek Kandung User',
+    relation: 'kakek',
+    trah: 'ayah',
     gender: 'L',
     birthYear: '1945',
-    deathYear: '2016',
-    status: 'Almarhum',
-    origin: 'Dramaga, Bogor',
-    notes: 'Mantan perangkat desa Dramaga. Al-Fatihah.'
-  },
-  {
-    id: '9',
-    name: 'Emak Siti Maryam',
-    nickname: 'Nini Siti',
-    binBinti: 'binti Syamsuddin',
-    kinshipTitle: 'Nini (Nenek Maternal)',
-    role: 'Ibu dari Siti Nurhaliza',
-    relation: 'nenek',
-    trah: 'ibu',
-    gender: 'P',
-    birthYear: '1950',
     status: 'Hidup',
-    origin: 'Dramaga, Bogor',
-    notes: 'Koordinator Arisan Trah Bogor'
+    origin: 'Kuningan',
+    notes: 'Memiliki 10 anak (Uwa 1 s/d Bibi 10).',
+    uyutName: 'Kyai Abdul Ghani'
   },
   {
-    id: '10',
-    name: 'Bibi Lilis Suryani',
-    nickname: 'Bibi Lilis',
-    binBinti: 'binti Suryana',
-    kinshipTitle: 'Bibi (Adik Ibu)',
+    id: 'kakek-c',
+    name: 'Kakek C (Bungsu)',
+    nickname: 'Aki Bungsu',
+    binBinti: 'bin Abdul Ghani',
+    kinshipTitle: 'Orbit 1: Kakek C (Anak 3)',
+    role: 'Kakek Paman',
+    relation: 'kakek',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1949',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    uyutName: 'Kyai Abdul Ghani'
+  },
+
+  // 3. ORBIT 2: 10 AYAH/PAMAN/BIBI (Anak-anak Kakek B)
+  {
+    id: 'ayah-1',
+    name: 'Uwa 1',
+    binBinti: 'bin Kakek B',
+    kinshipTitle: 'Orbit 2: Uwa 1 (Anak 1)',
+    role: 'Uwa Sulung',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1968',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)',
+    kakekName: 'Kakek B (Poros Utama Ayah)',
+    uyutName: 'Kyai Abdul Ghani'
+  },
+  {
+    id: 'ayah-2',
+    name: 'Ayah Karta (Anak 2 - Poros User)',
+    nickname: 'Bapak Karta',
+    binBinti: 'bin Kakek B',
+    kinshipTitle: 'Orbit 2: Ayah Kandung User',
+    role: 'Ayah Kandung (Anak 2)',
+    relation: 'ayah',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1970',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    notes: 'Ayah kandung user (memiliki 6 anak: Kakak 1, Kakak 2, User Hendriana, Adik 4, Adik 5, Adik 6)',
+    parentName: 'Kakek B (Poros Utama Ayah)',
+    kakekName: 'Kakek B (Poros Utama Ayah)',
+    uyutName: 'Kyai Abdul Ghani'
+  },
+  {
+    id: 'ayah-3',
+    name: 'Paman 3',
+    binBinti: 'bin Kakek B',
+    kinshipTitle: 'Orbit 2: Paman 3 (Anak 3)',
+    role: 'Paman',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1972',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-4',
+    name: 'Bibi 4',
+    binBinti: 'binti Kakek B',
+    kinshipTitle: 'Orbit 2: Bibi 4 (Anak 4)',
     role: 'Bibi',
     relation: 'paman_bibi',
-    trah: 'ibu',
+    trah: 'ayah',
+    gender: 'P',
+    birthYear: '1974',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-5',
+    name: 'Paman 5',
+    binBinti: 'bin Kakek B',
+    kinshipTitle: 'Orbit 2: Paman 5 (Anak 5)',
+    role: 'Paman',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1976',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-6',
+    name: 'Bibi 6',
+    binBinti: 'binti Kakek B',
+    kinshipTitle: 'Orbit 2: Bibi 6 (Anak 6)',
+    role: 'Bibi',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'P',
+    birthYear: '1978',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-7',
+    name: 'Paman 7',
+    binBinti: 'bin Kakek B',
+    kinshipTitle: 'Orbit 2: Paman 7 (Anak 7)',
+    role: 'Paman',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1980',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-8',
+    name: 'Bibi 8',
+    binBinti: 'binti Kakek B',
+    kinshipTitle: 'Orbit 2: Bibi 8 (Anak 8)',
+    role: 'Bibi',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'P',
+    birthYear: '1982',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-9',
+    name: 'Paman 9',
+    binBinti: 'bin Kakek B',
+    kinshipTitle: 'Orbit 2: Paman 9 (Anak 9)',
+    role: 'Paman',
+    relation: 'paman_bibi',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1984',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+  {
+    id: 'ayah-10',
+    name: 'Bibi 10',
+    binBinti: 'binti Kakek B',
+    kinshipTitle: 'Orbit 2: Bibi 10 (Anak 10)',
+    role: 'Bibi Bungsu',
+    relation: 'paman_bibi',
+    trah: 'ayah',
     gender: 'P',
     birthYear: '1986',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Kakek B (Poros Utama Ayah)'
+  },
+
+  // 4. ORBIT 3: 6 USER DAN SAUDARA (Anak-anak Ayah Karta No. 2)
+  {
+    id: 'saudara-1',
+    name: 'Kakak 1',
+    binBinti: 'bin Karta',
+    kinshipTitle: 'Orbit 3: Kakak Sulung (1 dari 6)',
+    role: 'Kakak Sulung',
+    relation: 'anak',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1992',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Ayah Karta (Anak 2 - Poros User)'
+  },
+  {
+    id: 'saudara-2',
+    name: 'Kakak 2',
+    binBinti: 'binti Karta',
+    kinshipTitle: 'Orbit 3: Kakak Kedua (2 dari 6)',
+    role: 'Kakak Kedua',
+    relation: 'anak',
+    trah: 'ayah',
+    gender: 'P',
+    birthYear: '1994',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Ayah Karta (Anak 2 - Poros User)'
+  },
+  {
+    id: 'user',
+    name: 'Hendriana (User)',
+    nickname: 'Bageur',
+    binBinti: 'bin Karta',
+    kinshipTitle: 'Orbit 3: User Poros Inti (3 dari 6)',
+    role: 'User (Poros Keluarga)',
+    relation: 'ayah',
+    trah: 'inti',
+    gender: 'L',
+    birthYear: '1996',
+    status: 'Hidup',
+    origin: 'Kuningan / Bogor',
+    notes: 'Anak ke-3 dari 6 bersaudara. Memiliki 3 anak (Anak 1, 2, 3).',
+    parentName: 'Ayah Karta (Anak 2 - Poros User)',
+    kakekName: 'Kakek B (Poros Utama Ayah)',
+    uyutName: 'Kyai Abdul Ghani'
+  },
+  {
+    id: 'saudara-4',
+    name: 'Adik 4',
+    binBinti: 'bin Karta',
+    kinshipTitle: 'Orbit 3: Adik Keempat (4 dari 6)',
+    role: 'Adik Keempat',
+    relation: 'anak',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '1998',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Ayah Karta (Anak 2 - Poros User)'
+  },
+  {
+    id: 'saudara-5',
+    name: 'Adik 5',
+    binBinti: 'binti Karta',
+    kinshipTitle: 'Orbit 3: Adik Kelima (5 dari 6)',
+    role: 'Adik Kelima',
+    relation: 'anak',
+    trah: 'ayah',
+    gender: 'P',
+    birthYear: '2001',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Ayah Karta (Anak 2 - Poros User)'
+  },
+  {
+    id: 'saudara-6',
+    name: 'Adik 6',
+    binBinti: 'bin Karta',
+    kinshipTitle: 'Orbit 3: Adik Bungsu (6 dari 6)',
+    role: 'Adik Bungsu',
+    relation: 'anak',
+    trah: 'ayah',
+    gender: 'L',
+    birthYear: '2004',
+    status: 'Hidup',
+    origin: 'Kuningan',
+    parentName: 'Ayah Karta (Anak 2 - Poros User)'
+  },
+
+  // 5. ORBIT 4: 3 ANAK USER (Hendriana)
+  {
+    id: 'anak-1',
+    name: 'Anak 1 (Putra Sulung)',
+    nickname: 'Iki',
+    binBinti: 'bin Hendriana',
+    kinshipTitle: 'Orbit 4: Anak 1 (Sulung)',
+    role: 'Putra Sulung',
+    relation: 'anak',
+    trah: 'inti',
+    gender: 'L',
+    birthYear: '2018',
+    status: 'Hidup',
+    origin: 'Bogor',
+    parentName: 'Hendriana (User)'
+  },
+  {
+    id: 'anak-2',
+    name: 'Anak 2 (Putri Tengah)',
+    nickname: 'Bila',
+    binBinti: 'binti Hendriana',
+    kinshipTitle: 'Orbit 4: Anak 2 (Tengah)',
+    role: 'Putri Tengah',
+    relation: 'anak',
+    trah: 'inti',
+    gender: 'P',
+    birthYear: '2021',
+    status: 'Hidup',
+    origin: 'Bogor',
+    parentName: 'Hendriana (User)'
+  },
+  {
+    id: 'anak-3',
+    name: 'Anak 3 (Putra Bungsu)',
+    nickname: 'Dede',
+    binBinti: 'bin Hendriana',
+    kinshipTitle: 'Orbit 4: Anak 3 (Bungsu)',
+    role: 'Putra Bungsu',
+    relation: 'anak',
+    trah: 'inti',
+    gender: 'L',
+    birthYear: '2024',
+    status: 'Hidup',
+    origin: 'Bogor',
+    parentName: 'Hendriana (User)'
+  },
+
+  // PASANGAN & TRAH LAINNYA (IBU, AYAH PASANGAN, IBU PASANGAN)
+  {
+    id: 'istri-user',
+    name: 'Siti Nurhaliza',
+    nickname: 'Neng Siti',
+    binBinti: 'binti Suryana',
+    kinshipTitle: 'Ibu (Istri Hendriana)',
+    role: 'Istri Kepala Keluarga',
+    relation: 'ibu',
+    trah: 'ibu',
+    gender: 'P',
+    birthYear: '1997',
+    status: 'Hidup',
+    origin: 'Dramaga, Bogor'
+  },
+  {
+    id: 'ibu-mertua-ayah',
+    name: 'H. Suryana (Ayah Pasangan)',
+    nickname: 'Abah Mertua',
+    binBinti: 'bin Sanusi',
+    kinshipTitle: 'Trah Ayah Pasangan',
+    role: 'Ayah Mertua',
+    relation: 'kakek',
+    trah: 'ayah_pasangan',
+    gender: 'L',
+    birthYear: '1955',
     status: 'Hidup',
     origin: 'Bogor'
   },
   {
-    id: '13',
-    name: 'H. Hasan Sulaeman',
-    nickname: 'Uyut Hasan',
-    binBinti: 'bin Asyikin',
-    kinshipTitle: 'Uyut (Buyut Maternal)',
-    role: 'Leluhur Trah Dramaga',
-    relation: 'buyut',
-    trah: 'ibu',
-    gender: 'L',
-    birthYear: '1912',
-    deathYear: '1988',
-    status: 'Almarhum',
-    origin: 'Dramaga, Bogor'
+    id: 'ibu-mertua-ibu',
+    name: 'Hj. Maryam (Ibu Pasangan)',
+    nickname: 'Ibu Mertua',
+    binBinti: 'binti Syamsuddin',
+    kinshipTitle: 'Trah Ibu Pasangan',
+    role: 'Ibu Mertua',
+    relation: 'nenek',
+    trah: 'ibu_pasangan',
+    gender: 'P',
+    birthYear: '1958',
+    status: 'Hidup',
+    origin: 'Bogor'
   }
 ];
 
 const DEFAULT_POSTS: PostItem[] = [
   {
     id: 'post-1',
-    authorName: 'Abah Karta',
-    authorRole: 'Aki (Kakek)',
+    authorName: 'Ayah Karta',
+    authorRole: 'Orbit 2 (Ayah)',
     trah: 'ayah',
-    trahName: 'Trah Kuningan',
+    trahName: 'Trah Ayah User (Kuningan)',
     category: 'Kisah Sejarah',
-    timeAgo: '2 jam yang lalu',
-    content: 'Alhamdulillah kumpul keluarga besar di lembur Cilimus berjalan lancar. Mengingatkan anak cucu, nasab kita dari Buyut Abdul Ghani selalu menjaga kerukunan dan silaturahmi. Sehat-sehat ya kabeh! 🙏',
+    timeAgo: '2 jam lalu',
+    content: 'Alhamdulillah silaturahmi keluarga besar Trah Ayah di Cilimus. Anak cucu dari Buyut Kyai Abdul Ghani dan 10 bersaudara anak Kakek B tetap rukun menjaga tali silaturahmi. 🙏',
     avatarColor: 'bg-emerald-700',
     initials: 'AK',
     likes: 18,
     isLiked: false,
     comments: [
-      { id: 'c1', author: 'Hendriana (Bageur)', text: 'Aamiin Abah, baktos ti rombongan Bogor siap sowan.', time: '1 jam lalu' },
-      { id: 'c2', author: 'Mang Dede', text: 'Siap Abah, buku silsilah tos dicitak rapi.', time: '40 mnt lalu' }
+      { id: 'c1', author: 'Hendriana (User)', text: 'Aamiin Ayah, rombongan Bogor siap berkunjung.', time: '1 jam lalu' }
     ]
   },
   {
     id: 'post-2',
-    authorName: 'Mang Dede',
-    authorRole: 'Mang (Paman)',
-    trah: 'ayah',
-    trahName: 'Trah Kuningan',
-    category: 'Foto Jadul',
-    timeAgo: 'Kemarin',
-    content: 'Ditemukan arsip foto hitam putih tahun 1978 saat syukuran rumah panggung peninggalan Uyut Abdul Ghani. Yang mengenali orang-orang di baris belakang tolong bantu tag namanya ya.',
+    authorName: 'Siti Nurhaliza',
+    authorRole: 'Ibu (Istri)',
+    trah: 'ibu',
+    trahName: 'Trah Ibu User (Bogor)',
+    category: 'Agenda Arisan',
+    timeAgo: '4 jam lalu',
+    content: 'Pemberitahuan silaturahmi & arisan keluarga Trah Ibu bulan depan di Dramaga Bogor. Mohon kehadirannya untuk mempererat persaudaraan.',
     avatarColor: 'bg-teal-700',
-    initials: 'MD',
-    likes: 24,
+    initials: 'SN',
+    likes: 14,
     isLiked: true,
     comments: []
   },
   {
     id: 'post-3',
-    authorName: 'Emak Siti Maryam',
-    authorRole: 'Nini (Nenek)',
-    trah: 'ibu',
-    trahName: 'Trah Bogor',
-    category: 'Agenda Arisan',
-    timeAgo: '3 jam yang lalu',
-    content: 'Pemberitahuan Arisan Trah Bogor bulan depan bertempat di saung Dramaga. Sekalian kirim doa haul ke-10 Almarhum Abah Suryana. Ditunggu kehadirannya anak cucu sekalian.',
-    avatarColor: 'bg-rose-700',
-    initials: 'EM',
-    likes: 31,
+    authorName: 'H. Suryana',
+    authorRole: 'Ayah Mertua',
+    trah: 'ayah_pasangan',
+    trahName: 'Trah Ayah Pasangan',
+    category: 'Kabar Keluarga',
+    timeAgo: 'Kemarin',
+    content: 'Salam takzim dari keluarga besar Trah Ayah Pasangan. InsyaAllah syukuran keluarga diadakan di kediaman kami, ditunggu kedatangan menantu dan cucu-cucu.',
+    avatarColor: 'bg-blue-700',
+    initials: 'HS',
+    likes: 22,
     isLiked: false,
     comments: [
-      { id: 'c3', author: 'Bibi Lilis', text: 'InsyaAllah konsumsi & tumpeng disiapkan Mak.', time: '2 jam lalu' },
-      { id: 'c4', author: 'Siti Nurhaliza', text: 'Aamiin Mak, insyaAllah rombongan kami hadir lengkap.', time: '1 jam lalu' }
+      { id: 'c3', author: 'Hendriana (User)', text: 'InsyaAllah kami hadir sekeluarga Abah.', time: '18 jam lalu' }
     ]
+  },
+  {
+    id: 'post-4',
+    authorName: 'Hj. Maryam',
+    authorRole: 'Ibu Mertua',
+    trah: 'ibu_pasangan',
+    trahName: 'Trah Ibu Pasangan',
+    category: 'Foto Jadul',
+    timeAgo: '2 hari lalu',
+    content: 'Foto kenangan reuni keluarga besar Trah Ibu Pasangan tahun 1990-an. Semoga tali nasab keluarga besan dan cucu senantiasa diberkahi Allah SWT.',
+    avatarColor: 'bg-purple-700',
+    initials: 'HM',
+    likes: 19,
+    isLiked: false,
+    comments: []
   }
 ];
 
@@ -401,12 +574,12 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
 }) => {
   // Navigation Tabs: Silsilah | OrbitQu | Medsos | Doa Malam Jumat | Arsip & Ekspor
   const [activeTab, setActiveTab] = useState<'silsilah' | 'orbitqu' | 'medsos' | 'doa' | 'arsip'>('silsilah');
-  const [activeMedsosTrah, setActiveMedsosTrah] = useState<'ayah' | 'ibu'>('ayah');
+  const [activeMedsosTrah, setActiveMedsosTrah] = useState<'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan'>('ayah');
 
   // Silsilah Data (Offline-first LocalStorage)
   const [members, setMembers] = useState<FamilyMember[]>(() => {
     try {
-      const saved = localStorage.getItem('wargaqu_leluhur_members_v2');
+      const saved = localStorage.getItem('wargaqu_leluhur_members_v3');
       return saved ? JSON.parse(saved) : DEFAULT_MEMBERS;
     } catch {
       return DEFAULT_MEMBERS;
@@ -416,7 +589,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   // Medsos Posts Data
   const [posts, setPosts] = useState<PostItem[]>(() => {
     try {
-      const saved = localStorage.getItem('wargaqu_leluhur_posts_v2');
+      const saved = localStorage.getItem('wargaqu_leluhur_posts_v3');
       return saved ? JSON.parse(saved) : DEFAULT_POSTS;
     } catch {
       return DEFAULT_POSTS;
@@ -452,7 +625,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   const [formKinship, setFormKinship] = useState('Anak');
   const [formRole, setFormRole] = useState('');
   const [formRelation, setFormRelation] = useState<'anak' | 'paman_bibi' | 'kakek' | 'nenek' | 'buyut' | 'cucu'>('anak');
-  const [formTrah, setFormTrah] = useState<'inti' | 'ayah' | 'ibu'>('inti');
+  const [formTrah, setFormTrah] = useState<'inti' | 'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan'>('inti');
   const [formGender, setFormGender] = useState<'L' | 'P'>('L');
   const [formBirthYear, setFormBirthYear] = useState('2020');
   const [formDeathYear, setFormDeathYear] = useState('');
@@ -460,10 +633,18 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   const [formOrigin, setFormOrigin] = useState('');
   const [formNotes, setFormNotes] = useState('');
 
-  // Persist Data
+  // Orbit Hierarchical Lineage Controls (Ayah, Kakek, Uyut) with typo/custom edit
+  const [formAyahSelect, setFormAyahSelect] = useState<string>('custom');
+  const [formAyahCustom, setFormAyahCustom] = useState<string>('');
+  const [formKakekSelect, setFormKakekSelect] = useState<string>('custom');
+  const [formKakekCustom, setFormKakekCustom] = useState<string>('');
+  const [formUyutSelect, setFormUyutSelect] = useState<string>('custom');
+  const [formUyutCustom, setFormUyutCustom] = useState<string>('');
+
+  // Persist Data (v3 clean data)
   useEffect(() => {
     try {
-      localStorage.setItem('wargaqu_leluhur_members_v2', JSON.stringify(members));
+      localStorage.setItem('wargaqu_leluhur_members_v3', JSON.stringify(members));
     } catch (e) {
       console.error(e);
     }
@@ -471,7 +652,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
 
   useEffect(() => {
     try {
-      localStorage.setItem('wargaqu_leluhur_posts_v2', JSON.stringify(posts));
+      localStorage.setItem('wargaqu_leluhur_posts_v3', JSON.stringify(posts));
     } catch (e) {
       console.error(e);
     }
@@ -561,7 +742,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     reader.readAsText(file);
   };
 
-  // Add Member
+  // Add Member with Ayah, Kakek, and Uyut Lineage Determination
   const handleAddMemberSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
@@ -569,11 +750,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       return;
     }
 
+    const finalAyah = formAyahSelect === 'custom' ? formAyahCustom.trim() : formAyahSelect;
+    const finalKakek = formKakekSelect === 'custom' ? formKakekCustom.trim() : formKakekSelect;
+    const finalUyut = formUyutSelect === 'custom' ? formUyutCustom.trim() : formUyutSelect;
+
     const newEntry: FamilyMember = {
       id: 'fam_' + Date.now(),
       name: formName.trim(),
       nickname: formNickname.trim() || undefined,
-      binBinti: formBinBinti.trim() ? (formGender === 'L' ? `bin ${formBinBinti.trim()}` : `binti ${formBinBinti.trim()}`) : undefined,
+      binBinti: formBinBinti.trim()
+        ? (formGender === 'L' ? `bin ${formBinBinti.trim()}` : `binti ${formBinBinti.trim()}`)
+        : (finalAyah ? (formGender === 'L' ? `bin ${finalAyah}` : `binti ${finalAyah}`) : undefined),
       kinshipTitle: formKinship,
       role: formRole || formKinship,
       relation: formRelation,
@@ -583,17 +770,62 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       deathYear: formStatus === 'Almarhum' ? (formDeathYear || undefined) : undefined,
       status: formStatus,
       origin: formOrigin || undefined,
-      notes: formNotes || undefined
+      notes: formNotes || undefined,
+      parentName: finalAyah || undefined,
+      kakekName: finalKakek || undefined,
+      uyutName: finalUyut || undefined,
     };
 
     setMembers(prev => [...prev, newEntry]);
+
+    // Also sync to OrbitQu tree in localStorage if available
+    try {
+      const savedOrbit = localStorage.getItem('wargaqu_orbitqu_tree_v4');
+      if (savedOrbit) {
+        const orbitData = JSON.parse(savedOrbit);
+        if (orbitData && Array.isArray(orbitData.nodes)) {
+          let gen = 0;
+          if (formKinship.includes('Uyut')) gen = -3;
+          else if (formKinship.includes('Aki') || formKinship.includes('Nini')) gen = -2;
+          else if (formKinship.includes('Ayah') || formKinship.includes('Uwa') || formKinship.includes('Mang') || formKinship.includes('Bibi')) gen = -1;
+          else if (formKinship.includes('Anak')) gen = 1;
+          else if (formKinship.includes('Cucu')) gen = 2;
+
+          let q: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q1';
+          if (formTrah === 'ibu') q = 'Q2';
+          else if (formTrah === 'ayah_pasangan') q = 'Q3';
+          else if (formTrah === 'ibu_pasangan') q = 'Q4';
+
+          const matchingParentNode = finalAyah ? orbitData.nodes.find((n: any) => n.name.toLowerCase().includes(finalAyah.toLowerCase())) : null;
+
+          orbitData.nodes.push({
+            id: newEntry.id,
+            name: newEntry.name,
+            gen,
+            order: newEntry.kinshipTitle || 'Baru',
+            quadrant: q,
+            claimed: true,
+            role: newEntry.role,
+            parentId: matchingParentNode ? matchingParentNode.id : undefined
+          });
+
+          localStorage.setItem('wargaqu_orbitqu_tree_v4', JSON.stringify(orbitData));
+        }
+      }
+    } catch (err) {
+      console.warn('Orbit sync skipped:', err);
+    }
+
     setShowAddMemberModal(false);
     // Reset form
     setFormName('');
     setFormNickname('');
     setFormBinBinti('');
     setFormNotes('');
-    showNotification(`Alhamdulillah, ${newEntry.name} berhasil ditambahkan ke silsilah!`);
+    setFormAyahCustom('');
+    setFormKakekCustom('');
+    setFormUyutCustom('');
+    showNotification(`Alhamdulillah, ${newEntry.name} berhasil ditambahkan dan garis orbit dirapikan!`);
   };
 
   // Like & Comment
@@ -644,17 +876,24 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     e.preventDefault();
     if (!newPostText.trim()) return;
 
+    const trahLabels: Record<'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan', string> = {
+      ayah: 'Trah Ayah User (Kuningan)',
+      ibu: 'Trah Ibu User (Bogor)',
+      ayah_pasangan: 'Trah Ayah Pasangan',
+      ibu_pasangan: 'Trah Ibu Pasangan'
+    };
+
     const newPost: PostItem = {
       id: 'post-' + Date.now(),
-      authorName: 'Hendriana (Bageur)',
+      authorName: 'Hendriana (User)',
       authorRole: 'Kepala Keluarga',
       trah: activeMedsosTrah,
-      trahName: activeMedsosTrah === 'ayah' ? 'Trah Kuningan' : 'Trah Bogor',
+      trahName: trahLabels[activeMedsosTrah],
       category: newPostCategory,
       timeAgo: 'Baru saja',
       content: newPostText.trim(),
       avatarColor: 'bg-emerald-700',
-      initials: 'HB',
+      initials: 'HU',
       likes: 1,
       isLiked: true,
       comments: []
@@ -691,6 +930,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
         <div className="flex-1 w-full h-full relative overflow-hidden pb-14">
           <OrbitQuView
             onBackToLeluhurQu={() => setActiveTab('silsilah')}
+            onOpenInSilsilah={(name, id) => {
+              setActiveTab('silsilah');
+              const matched = members.find(m => (id && m.id === id) || m.name.toLowerCase().includes(name.toLowerCase()));
+              if (matched) {
+                setSelectedMember(matched);
+              } else {
+                setFormName(name);
+                setShowAddMemberModal(true);
+              }
+              showNotification(`Membuka profil ${name} di tab Silsilah`);
+            }}
             showNotification={showNotification}
           />
         </div>
@@ -1068,30 +1318,54 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           </div>
         )}
 
-        {/* TAB 2: MEDSOS TRAH (FEED 2 JALUR AYAH VS IBU) */}
+        {/* TAB 2: MEDSOS TRAH (FEED 4 JALUR TRAH: AYAH, IBU, AYAH PASANGAN, IBU PASANGAN) */}
         {activeTab === 'medsos' && (
           <div className="space-y-3.5 animate-in fade-in duration-200">
-            {/* Sub-tab Jalur Trah Ayah vs Trah Ibu */}
-            <div className="grid grid-cols-2 bg-emerald-100/70 p-1 rounded-2xl border border-emerald-200">
+            {/* Sub-tab Jalur 4 Menu Trah: Ayah, Ibu, Ayah Pasangan, Ibu Pasangan */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-emerald-100/70 p-1.5 rounded-2xl border border-emerald-200">
               <button
                 onClick={() => setActiveMedsosTrah('ayah')}
-                className={`py-2 text-xs font-bold rounded-xl transition flex items-center justify-center space-x-1.5 ${
+                className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
                   activeMedsosTrah === 'ayah'
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:text-emerald-700'
+                    : 'text-emerald-900 hover:bg-emerald-200/50'
                 }`}
               >
-                <span>Trah Ayah (Kuningan)</span>
+                <span>Trah Ayah User</span>
+                <span className="text-[9px] opacity-80">(Kiri-Atas)</span>
               </button>
               <button
                 onClick={() => setActiveMedsosTrah('ibu')}
-                className={`py-2 text-xs font-bold rounded-xl transition flex items-center justify-center space-x-1.5 ${
+                className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
                   activeMedsosTrah === 'ibu'
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:text-emerald-700'
+                    : 'text-emerald-900 hover:bg-emerald-200/50'
                 }`}
               >
-                <span>Trah Ibu (Bogor)</span>
+                <span>Trah Ibu User</span>
+                <span className="text-[9px] opacity-80">(Kanan-Atas)</span>
+              </button>
+              <button
+                onClick={() => setActiveMedsosTrah('ayah_pasangan')}
+                className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
+                  activeMedsosTrah === 'ayah_pasangan'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'text-emerald-900 hover:bg-emerald-200/50'
+                }`}
+              >
+                <span>Trah Ayah Pasangan</span>
+                <span className="text-[9px] opacity-80">(Kiri-Bawah)</span>
+              </button>
+              <button
+                onClick={() => setActiveMedsosTrah('ibu_pasangan')}
+                className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
+                  activeMedsosTrah === 'ibu_pasangan'
+                    ? 'bg-emerald-700 text-white shadow-xs'
+                    : 'text-emerald-900 hover:bg-emerald-200/50'
+                }`}
+              >
+                <span>Trah Ibu Pasangan</span>
+                <span className="text-[9px] opacity-80">(Kanan-Bawah)</span>
               </button>
             </div>
 
@@ -1100,13 +1374,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 bg-emerald-700 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs">
-                    HB
+                    HU
                   </div>
                   <div>
                     <span className="text-xs font-bold text-slate-800">
-                      Bagikan ke {activeMedsosTrah === 'ayah' ? 'Trah Ayah' : 'Trah Ibu'}
+                      Bagikan ke {
+                        activeMedsosTrah === 'ayah' ? 'Trah Ayah User' :
+                        activeMedsosTrah === 'ibu' ? 'Trah Ibu User' :
+                        activeMedsosTrah === 'ayah_pasangan' ? 'Trah Ayah Pasangan' : 'Trah Ibu Pasangan'
+                      }
                     </span>
-                    <span className="text-[10px] text-slate-400 block">Hendriana (Bageur)</span>
+                    <span className="text-[10px] text-slate-400 block">Hendriana (User)</span>
                   </div>
                 </div>
 
@@ -1126,14 +1404,22 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               <textarea
                 value={newPostText}
                 onChange={e => setNewPostText(e.target.value)}
-                placeholder={`Bagikan arsip cerita, sejarah leluhur, atau agenda arisan untuk ${activeMedsosTrah === 'ayah' ? 'Trah Kuningan' : 'Trah Bogor'}...`}
+                placeholder={`Bagikan arsip cerita, sejarah leluhur, atau agenda silaturahmi untuk ${
+                  activeMedsosTrah === 'ayah' ? 'Trah Ayah User' :
+                  activeMedsosTrah === 'ibu' ? 'Trah Ibu User' :
+                  activeMedsosTrah === 'ayah_pasangan' ? 'Trah Ayah Pasangan' : 'Trah Ibu Pasangan'
+                }...`}
                 rows={2}
                 className="w-full bg-[#f0fdf4] border border-emerald-200/80 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 resize-none"
               />
 
               <div className="flex justify-between items-center pt-1">
                 <span className="text-[10px] text-slate-400 italic">
-                  Hanya terlihat oleh keluarga {activeMedsosTrah === 'ayah' ? 'Trah Ayah' : 'Trah Ibu'}
+                  Hanya terlihat oleh keluarga {
+                    activeMedsosTrah === 'ayah' ? 'Trah Ayah' :
+                    activeMedsosTrah === 'ibu' ? 'Trah Ibu' :
+                    activeMedsosTrah === 'ayah_pasangan' ? 'Trah Ayah Pasangan' : 'Trah Ibu Pasangan'
+                  }
                 </span>
                 <button
                   type="submit"
@@ -1552,9 +1838,30 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
                 <span className="text-slate-500">Jalur Nasab:</span>
                 <span className="font-bold text-emerald-800">
-                  {selectedMember.trah === 'ayah' ? 'Trah Ayah (Kuningan)' : selectedMember.trah === 'ibu' ? 'Trah Ibu (Bogor)' : 'Keluarga Inti'}
+                  {selectedMember.trah === 'ayah' ? 'Trah Ayah User' :
+                   selectedMember.trah === 'ibu' ? 'Trah Ibu User' :
+                   selectedMember.trah === 'ayah_pasangan' ? 'Trah Ayah Pasangan' :
+                   selectedMember.trah === 'ibu_pasangan' ? 'Trah Ibu Pasangan' : 'Keluarga Inti'}
                 </span>
               </div>
+              {selectedMember.parentName && (
+                <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
+                  <span className="text-slate-500">Ayah / Induk Orbit 2:</span>
+                  <span className="font-bold text-slate-800">{selectedMember.parentName}</span>
+                </div>
+              )}
+              {selectedMember.kakekName && (
+                <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
+                  <span className="text-slate-500">Kakek / Induk Orbit 1:</span>
+                  <span className="font-bold text-slate-800">{selectedMember.kakekName}</span>
+                </div>
+              )}
+              {selectedMember.uyutName && (
+                <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
+                  <span className="text-slate-500">Uyut / Pusat Kuadran:</span>
+                  <span className="font-bold text-slate-800">{selectedMember.uyutName}</span>
+                </div>
+              )}
               {selectedMember.notes && (
                 <div className="pt-1">
                   <span className="text-[10px] text-slate-500 block">Catatan Silsilah:</span>
@@ -1564,24 +1871,37 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2">
-              {selectedMember.status === 'Almarhum' && (
-                <button
-                  onClick={() => {
-                    showNotification(`Doa Al-Fatihah dikirimkan untuk ${selectedMember.name} 🤲`);
-                    setSelectedMember(null);
-                  }}
-                  className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs"
-                >
-                  Kirim Doa Al-Fatihah 🤲
-                </button>
-              )}
+            <div className="flex flex-col gap-2">
               <button
-                onClick={() => setSelectedMember(null)}
-                className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                onClick={() => {
+                  setSelectedMember(null);
+                  setActiveTab('orbitqu');
+                  showNotification(`Membuka visualisasi orbit untuk ${selectedMember.name}`);
+                }}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-emerald-400 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 border border-emerald-500/40 shadow-xs transition"
               >
-                Tutup
+                <span>🪐 Buka di OrbitQu (Tata Surya)</span>
               </button>
+
+              <div className="flex gap-2">
+                {selectedMember.status === 'Almarhum' && (
+                  <button
+                    onClick={() => {
+                      showNotification(`Doa Al-Fatihah dikirimkan untuk ${selectedMember.name} 🤲`);
+                      setSelectedMember(null);
+                    }}
+                    className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs"
+                  >
+                    Kirim Doa Al-Fatihah 🤲
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedMember(null)}
+                  className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1842,6 +2162,109 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                   placeholder="Contoh: Cilimus, Kuningan"
                   className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
                 />
+              </div>
+
+              {/* Penentuan / Perapian Garis Orbit (Ayah, Kakek, Uyut) */}
+              <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-1.5">
+                  <span className="text-[10px] uppercase font-bold text-emerald-900 flex items-center gap-1">
+                    🪐 Penentuan Garis Antar Orbit
+                  </span>
+                  <span className="text-[9px] text-emerald-700 italic">Bisa edit / isi sendiri jika typo</span>
+                </div>
+
+                {/* 1. Garis Ayah / Induk Orbit 2 */}
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-700 mb-0.5">
+                    1. Garis Ayah / Induk Orbit 2:
+                  </label>
+                  <select
+                    value={formAyahSelect}
+                    onChange={e => {
+                      setFormAyahSelect(e.target.value);
+                      if (e.target.value !== 'custom') {
+                        setFormAyahCustom(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-white border border-emerald-200 rounded-lg p-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="custom">✍️ Ketik Manual / Perbaiki Typo...</option>
+                    {members.filter(m => m.gender === 'L' || m.relation === 'ayah' || m.relation === 'paman_bibi').map(m => (
+                      <option key={m.id} value={m.name}>{m.name} ({m.kinshipTitle || m.role})</option>
+                    ))}
+                  </select>
+                  {formAyahSelect === 'custom' && (
+                    <input
+                      type="text"
+                      value={formAyahCustom}
+                      onChange={e => setFormAyahCustom(e.target.value)}
+                      placeholder="Ketik nama ayah kandung (misal: Ayah Karta)"
+                      className="mt-1 w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                    />
+                  )}
+                </div>
+
+                {/* 2. Garis Kakek / Induk Orbit 1 */}
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-700 mb-0.5">
+                    2. Garis Kakek / Induk Orbit 1:
+                  </label>
+                  <select
+                    value={formKakekSelect}
+                    onChange={e => {
+                      setFormKakekSelect(e.target.value);
+                      if (e.target.value !== 'custom') {
+                        setFormKakekCustom(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-white border border-emerald-200 rounded-lg p-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="custom">✍️ Ketik Manual / Perbaiki Typo...</option>
+                    {members.filter(m => m.relation === 'kakek' || m.kinshipTitle?.includes('Kakek') || m.kinshipTitle?.includes('Aki')).map(m => (
+                      <option key={m.id} value={m.name}>{m.name} ({m.kinshipTitle || m.role})</option>
+                    ))}
+                  </select>
+                  {formKakekSelect === 'custom' && (
+                    <input
+                      type="text"
+                      value={formKakekCustom}
+                      onChange={e => setFormKakekCustom(e.target.value)}
+                      placeholder="Ketik nama kakek (misal: Kakek B)"
+                      className="mt-1 w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                    />
+                  )}
+                </div>
+
+                {/* 3. Garis Uyut / Pusat Kuadran */}
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-700 mb-0.5">
+                    3. Garis Uyut / Pusat Kuadran:
+                  </label>
+                  <select
+                    value={formUyutSelect}
+                    onChange={e => {
+                      setFormUyutSelect(e.target.value);
+                      if (e.target.value !== 'custom') {
+                        setFormUyutCustom(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-white border border-emerald-200 rounded-lg p-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                  >
+                    <option value="custom">✍️ Ketik Manual / Perbaiki Typo...</option>
+                    {members.filter(m => m.relation === 'buyut' || m.kinshipTitle?.includes('Uyut')).map(m => (
+                      <option key={m.id} value={m.name}>{m.name} ({m.kinshipTitle || m.role})</option>
+                    ))}
+                  </select>
+                  {formUyutSelect === 'custom' && (
+                    <input
+                      type="text"
+                      value={formUyutCustom}
+                      onChange={e => setFormUyutCustom(e.target.value)}
+                      placeholder="Ketik nama uyut (misal: Kyai Abdul Ghani)"
+                      className="mt-1 w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600"
+                    />
+                  )}
+                </div>
               </div>
 
               <div>
