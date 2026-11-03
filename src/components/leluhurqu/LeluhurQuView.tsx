@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
   Camera,
@@ -25,6 +25,7 @@ import {
   Upload,
   Copy,
   Moon,
+  Sun,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -35,9 +36,12 @@ import {
   Archive,
   ExternalLink,
   MessageSquare,
-  Compass
+  Compass,
+  Edit3,
+  Trash2,
+  Baby
 } from 'lucide-react';
-import { OrbitQuView } from './OrbitQuView';
+import { OrbitQuView, OrbitNode, OrbitTreeData, CLEAN_REAL_TREE_DATA } from './OrbitQuView';
 
 interface LeluhurQuViewProps {
   onBackToWarga: () => void;
@@ -74,6 +78,7 @@ export interface FamilyMember {
   origin?: string;
   phone?: string;
   notes?: string;
+  isUser?: boolean;
   spouses?: FamilySpouse[];
   parentName?: string;
   kakekName?: string;
@@ -103,403 +108,90 @@ interface PostItem {
   comments: CommentItem[];
 }
 
-const DEFAULT_MEMBERS: FamilyMember[] = [
-  // 1. PUSAT KUADRAN: UYUT (Generasi +3)
-  {
-    id: 'uyut-ghani',
-    name: 'Kyai Abdul Ghani',
-    nickname: 'Uyut Ghani',
-    binBinti: 'bin Hasanudin',
-    kinshipTitle: 'Pusat: Uyut / Aki Moyang',
-    role: 'Sesepuh Pendiri Trah',
-    relation: 'buyut',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1918',
-    deathYear: '1994',
-    status: 'Almarhum',
-    origin: 'Cilimus, Kuningan',
-    notes: 'Pusat Kuadran Trah Ayah. Makam di Pasarean Cilimus.'
-  },
+// -------------------------------------------------------------
+// ADAPTER: CONVERT ORBITQU DATA KE DATA SILSILAH KELUARGA
+// Mengintegrasikan OrbitQu sebagai Single Source of Truth
+// -------------------------------------------------------------
+export function orbitNodeToFamilyMember(node: OrbitNode, allNodes: OrbitNode[]): FamilyMember {
+  const parent = node.parentId ? allNodes.find(n => n.id === node.parentId) : undefined;
+  const kakek = parent?.parentId ? allNodes.find(n => n.id === parent.parentId) : undefined;
+  const uyut = kakek?.parentId ? allNodes.find(n => n.id === kakek.parentId) : undefined;
 
-  // 2. ORBIT 1: 3 KAKEK (A, B, C)
-  {
-    id: 'kakek-a',
-    name: 'Kakek A (Sulung)',
-    nickname: 'Aki Kolot',
-    binBinti: 'bin Abdul Ghani',
-    kinshipTitle: 'Orbit 1: Kakek A (Anak 1)',
-    role: 'Kakek Tertua',
-    relation: 'kakek',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1942',
-    deathYear: '2015',
-    status: 'Almarhum',
-    origin: 'Kuningan',
-    uyutName: 'Kyai Abdul Ghani'
-  },
-  {
-    id: 'kakek-b',
-    name: 'Kakek B (Poros Utama Ayah)',
-    nickname: 'Abah Sepuh',
-    binBinti: 'bin Abdul Ghani',
-    kinshipTitle: 'Orbit 1: Kakek B (Anak 2 - Poros)',
-    role: 'Kakek Kandung User',
-    relation: 'kakek',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1945',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    notes: 'Memiliki 10 anak (Uwa 1 s/d Bibi 10).',
-    uyutName: 'Kyai Abdul Ghani'
-  },
-  {
-    id: 'kakek-c',
-    name: 'Kakek C (Bungsu)',
-    nickname: 'Aki Bungsu',
-    binBinti: 'bin Abdul Ghani',
-    kinshipTitle: 'Orbit 1: Kakek C (Anak 3)',
-    role: 'Kakek Paman',
-    relation: 'kakek',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1949',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    uyutName: 'Kyai Abdul Ghani'
-  },
-
-  // 3. ORBIT 2: 10 AYAH/PAMAN/BIBI (Anak-anak Kakek B)
-  {
-    id: 'ayah-1',
-    name: 'Uwa 1',
-    binBinti: 'bin Kakek B',
-    kinshipTitle: 'Orbit 2: Uwa 1 (Anak 1)',
-    role: 'Uwa Sulung',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1968',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)',
-    kakekName: 'Kakek B (Poros Utama Ayah)',
-    uyutName: 'Kyai Abdul Ghani'
-  },
-  {
-    id: 'ayah-2',
-    name: 'Ayah Karta (Anak 2 - Poros User)',
-    nickname: 'Bapak Karta',
-    binBinti: 'bin Kakek B',
-    kinshipTitle: 'Orbit 2: Ayah Kandung User',
-    role: 'Ayah Kandung (Anak 2)',
-    relation: 'ayah',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1970',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    notes: 'Ayah kandung user (memiliki 6 anak: Kakak 1, Kakak 2, User Hendriana, Adik 4, Adik 5, Adik 6)',
-    parentName: 'Kakek B (Poros Utama Ayah)',
-    kakekName: 'Kakek B (Poros Utama Ayah)',
-    uyutName: 'Kyai Abdul Ghani'
-  },
-  {
-    id: 'ayah-3',
-    name: 'Paman 3',
-    binBinti: 'bin Kakek B',
-    kinshipTitle: 'Orbit 2: Paman 3 (Anak 3)',
-    role: 'Paman',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1972',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-4',
-    name: 'Bibi 4',
-    binBinti: 'binti Kakek B',
-    kinshipTitle: 'Orbit 2: Bibi 4 (Anak 4)',
-    role: 'Bibi',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '1974',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-5',
-    name: 'Paman 5',
-    binBinti: 'bin Kakek B',
-    kinshipTitle: 'Orbit 2: Paman 5 (Anak 5)',
-    role: 'Paman',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1976',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-6',
-    name: 'Bibi 6',
-    binBinti: 'binti Kakek B',
-    kinshipTitle: 'Orbit 2: Bibi 6 (Anak 6)',
-    role: 'Bibi',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '1978',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-7',
-    name: 'Paman 7',
-    binBinti: 'bin Kakek B',
-    kinshipTitle: 'Orbit 2: Paman 7 (Anak 7)',
-    role: 'Paman',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1980',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-8',
-    name: 'Bibi 8',
-    binBinti: 'binti Kakek B',
-    kinshipTitle: 'Orbit 2: Bibi 8 (Anak 8)',
-    role: 'Bibi',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '1982',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-9',
-    name: 'Paman 9',
-    binBinti: 'bin Kakek B',
-    kinshipTitle: 'Orbit 2: Paman 9 (Anak 9)',
-    role: 'Paman',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1984',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-  {
-    id: 'ayah-10',
-    name: 'Bibi 10',
-    binBinti: 'binti Kakek B',
-    kinshipTitle: 'Orbit 2: Bibi 10 (Anak 10)',
-    role: 'Bibi Bungsu',
-    relation: 'paman_bibi',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '1986',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Kakek B (Poros Utama Ayah)'
-  },
-
-  // 4. ORBIT 3: 6 USER DAN SAUDARA (Anak-anak Ayah Karta No. 2)
-  {
-    id: 'saudara-1',
-    name: 'Kakak 1',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Orbit 3: Kakak Sulung (1 dari 6)',
-    role: 'Kakak Sulung',
-    relation: 'anak',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1992',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Ayah Karta (Anak 2 - Poros User)'
-  },
-  {
-    id: 'saudara-2',
-    name: 'Kakak 2',
-    binBinti: 'binti Karta',
-    kinshipTitle: 'Orbit 3: Kakak Kedua (2 dari 6)',
-    role: 'Kakak Kedua',
-    relation: 'anak',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '1994',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Ayah Karta (Anak 2 - Poros User)'
-  },
-  {
-    id: 'user',
-    name: 'Hendriana (User)',
-    nickname: 'Bageur',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Orbit 3: User Poros Inti (3 dari 6)',
-    role: 'User (Poros Keluarga)',
-    relation: 'ayah',
-    trah: 'inti',
-    gender: 'L',
-    birthYear: '1996',
-    status: 'Hidup',
-    origin: 'Kuningan / Bogor',
-    notes: 'Anak ke-3 dari 6 bersaudara. Memiliki 3 anak (Anak 1, 2, 3).',
-    parentName: 'Ayah Karta (Anak 2 - Poros User)',
-    kakekName: 'Kakek B (Poros Utama Ayah)',
-    uyutName: 'Kyai Abdul Ghani'
-  },
-  {
-    id: 'saudara-4',
-    name: 'Adik 4',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Orbit 3: Adik Keempat (4 dari 6)',
-    role: 'Adik Keempat',
-    relation: 'anak',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '1998',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Ayah Karta (Anak 2 - Poros User)'
-  },
-  {
-    id: 'saudara-5',
-    name: 'Adik 5',
-    binBinti: 'binti Karta',
-    kinshipTitle: 'Orbit 3: Adik Kelima (5 dari 6)',
-    role: 'Adik Kelima',
-    relation: 'anak',
-    trah: 'ayah',
-    gender: 'P',
-    birthYear: '2001',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Ayah Karta (Anak 2 - Poros User)'
-  },
-  {
-    id: 'saudara-6',
-    name: 'Adik 6',
-    binBinti: 'bin Karta',
-    kinshipTitle: 'Orbit 3: Adik Bungsu (6 dari 6)',
-    role: 'Adik Bungsu',
-    relation: 'anak',
-    trah: 'ayah',
-    gender: 'L',
-    birthYear: '2004',
-    status: 'Hidup',
-    origin: 'Kuningan',
-    parentName: 'Ayah Karta (Anak 2 - Poros User)'
-  },
-
-  // 5. ORBIT 4: 3 ANAK USER (Hendriana)
-  {
-    id: 'anak-1',
-    name: 'Anak 1 (Putra Sulung)',
-    nickname: 'Iki',
-    binBinti: 'bin Hendriana',
-    kinshipTitle: 'Orbit 4: Anak 1 (Sulung)',
-    role: 'Putra Sulung',
-    relation: 'anak',
-    trah: 'inti',
-    gender: 'L',
-    birthYear: '2018',
-    status: 'Hidup',
-    origin: 'Bogor',
-    parentName: 'Hendriana (User)'
-  },
-  {
-    id: 'anak-2',
-    name: 'Anak 2 (Putri Tengah)',
-    nickname: 'Bila',
-    binBinti: 'binti Hendriana',
-    kinshipTitle: 'Orbit 4: Anak 2 (Tengah)',
-    role: 'Putri Tengah',
-    relation: 'anak',
-    trah: 'inti',
-    gender: 'P',
-    birthYear: '2021',
-    status: 'Hidup',
-    origin: 'Bogor',
-    parentName: 'Hendriana (User)'
-  },
-  {
-    id: 'anak-3',
-    name: 'Anak 3 (Putra Bungsu)',
-    nickname: 'Dede',
-    binBinti: 'bin Hendriana',
-    kinshipTitle: 'Orbit 4: Anak 3 (Bungsu)',
-    role: 'Putra Bungsu',
-    relation: 'anak',
-    trah: 'inti',
-    gender: 'L',
-    birthYear: '2024',
-    status: 'Hidup',
-    origin: 'Bogor',
-    parentName: 'Hendriana (User)'
-  },
-
-  // PASANGAN & TRAH LAINNYA (IBU, AYAH PASANGAN, IBU PASANGAN)
-  {
-    id: 'istri-user',
-    name: 'Siti Nurhaliza',
-    nickname: 'Neng Siti',
-    binBinti: 'binti Suryana',
-    kinshipTitle: 'Ibu (Istri Hendriana)',
-    role: 'Istri Kepala Keluarga',
-    relation: 'ibu',
-    trah: 'ibu',
-    gender: 'P',
-    birthYear: '1997',
-    status: 'Hidup',
-    origin: 'Dramaga, Bogor'
-  },
-  {
-    id: 'ibu-mertua-ayah',
-    name: 'H. Suryana (Ayah Pasangan)',
-    nickname: 'Abah Mertua',
-    binBinti: 'bin Sanusi',
-    kinshipTitle: 'Trah Ayah Pasangan',
-    role: 'Ayah Mertua',
-    relation: 'kakek',
-    trah: 'ayah_pasangan',
-    gender: 'L',
-    birthYear: '1955',
-    status: 'Hidup',
-    origin: 'Bogor'
-  },
-  {
-    id: 'ibu-mertua-ibu',
-    name: 'Hj. Maryam (Ibu Pasangan)',
-    nickname: 'Ibu Mertua',
-    binBinti: 'binti Syamsuddin',
-    kinshipTitle: 'Trah Ibu Pasangan',
-    role: 'Ibu Mertua',
-    relation: 'nenek',
-    trah: 'ibu_pasangan',
-    gender: 'P',
-    birthYear: '1958',
-    status: 'Hidup',
-    origin: 'Bogor'
+  let relation: FamilyMember['relation'] = 'anak';
+  if (node.gen === -3) relation = 'buyut';
+  else if (node.gen === -2) relation = node.gender === 'P' ? 'nenek' : 'kakek';
+  else if (node.gen === -1) {
+    if (node.isUser) relation = 'ayah';
+    else if (node.name.toLowerCase().includes('ibu')) relation = 'ibu';
+    else if (node.name.toLowerCase().includes('ayah')) relation = 'ayah';
+    else relation = 'paman_bibi';
+  } else if (node.gen === 0) {
+    relation = node.isUser ? 'ayah' : 'anak';
+  } else if (node.gen === 1) {
+    relation = 'anak';
+  } else if (node.gen >= 2) {
+    relation = 'cucu';
   }
-];
+
+  let trah: FamilyMember['trah'] = 'ayah';
+  if (node.quadrant === 'Q2') trah = 'ibu';
+  else if (node.quadrant === 'Q3') trah = 'ayah_pasangan';
+  else if (node.quadrant === 'Q4') trah = 'ibu_pasangan';
+  else if (node.isUser || (node.gen >= 0 && node.gen <= 1 && (node.parentId === 'user_node' || node.id === 'user_node'))) {
+    trah = 'inti';
+  }
+
+  let kinshipTitle = node.order || '';
+  if (node.gen === -3) kinshipTitle = `Pusat Kuadran: Uyut (${node.quadrant || 'Q1'})`;
+  else if (node.gen === -2) kinshipTitle = `Orbit 1: ${node.gender === 'P' ? 'Nenek' : 'Kakek'} (${node.order || ''})`;
+  else if (node.gen === -1) kinshipTitle = `Orbit 2: ${node.role || (node.gender === 'P' ? 'Bibi' : 'Paman/Ayah')} (${node.order || ''})`;
+  else if (node.gen === 0) kinshipTitle = node.isUser ? 'Orbit 3: Poros User (Kepala Keluarga)' : `Orbit 3: Saudara Kandung (${node.order || ''})`;
+  else if (node.gen === 1) kinshipTitle = `Orbit 4: Anak (${node.order || ''})`;
+  else if (node.gen === 2) kinshipTitle = `Orbit 5: Cucu (${node.order || ''})`;
+  else if (node.gen === 3) kinshipTitle = `Orbit 6: Cicit (${node.order || ''})`;
+
+  let binBinti = '';
+  if (parent) {
+    binBinti = (node.gender === 'P' ? 'binti ' : 'bin ') + parent.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  } else if (node.gen === -3) {
+    binBinti = 'Moyang Pendiri Nasab';
+  }
+
+  const spouses: FamilySpouse[] = [];
+  if (node.spouseName) {
+    const directChildren = allNodes.filter(n => n.parentId === node.id);
+    spouses.push({
+      id: `${node.id}_spouse`,
+      name: node.spouseName,
+      gender: node.spouseGender || (node.gender === 'L' ? 'P' : 'L'),
+      status: 'Hidup',
+      childrenIds: directChildren.map(c => c.id),
+      marriageNote: 'Pasangan Sah'
+    });
+  }
+
+  return {
+    id: node.id,
+    name: node.name,
+    nickname: node.isUser ? 'Bageur' : undefined,
+    binBinti: binBinti || undefined,
+    kinshipTitle,
+    role: node.role || kinshipTitle,
+    relation,
+    trah,
+    gender: node.gender || 'L',
+    birthYear: node.birthYear || (node.gen === -3 ? '1910' : node.gen === -2 ? '1938' : node.gen === -1 ? '1965' : node.gen === 0 ? '1992' : node.gen === 1 ? '2020' : '2025'),
+    deathYear: node.deathYear,
+    status: node.status || 'Hidup',
+    origin: node.origin || (node.quadrant === 'Q1' ? 'Bandung / Cianjur' : 'Bogor'),
+    notes: node.notes,
+    isUser: Boolean(node.isUser || node.id === 'user_node'),
+    parentName: parent?.name,
+    kakekName: kakek?.name,
+    uyutName: uyut?.name,
+    spouses: spouses.length > 0 ? spouses : undefined
+  };
+}
 
 const DEFAULT_POSTS: PostItem[] = [
   {
@@ -576,15 +268,32 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   const [activeTab, setActiveTab] = useState<'silsilah' | 'orbitqu' | 'medsos' | 'doa' | 'arsip'>('silsilah');
   const [activeMedsosTrah, setActiveMedsosTrah] = useState<'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan'>('ayah');
 
-  // Silsilah Data (Offline-first LocalStorage)
-  const [members, setMembers] = useState<FamilyMember[]>(() => {
+  // Unified OrbitQu Tree Data (Single Source of Truth)
+  const [familyTree, setFamilyTree] = useState<OrbitTreeData>(() => {
     try {
-      const saved = localStorage.getItem('wargaqu_leluhur_members_v3');
-      return saved ? JSON.parse(saved) : DEFAULT_MEMBERS;
+      const saved = localStorage.getItem('wargaqu_orbitqu_tree_v6');
+      return saved ? JSON.parse(saved) : CLEAN_REAL_TREE_DATA;
     } catch {
-      return DEFAULT_MEMBERS;
+      return CLEAN_REAL_TREE_DATA;
     }
   });
+
+  // Target Node to focus in OrbitQu
+  const [targetOrbitNodeId, setTargetOrbitNodeId] = useState<string | null>(null);
+
+  // Sync familyTree to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('wargaqu_orbitqu_tree_v6', JSON.stringify(familyTree));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [familyTree]);
+
+  // Derive rich members list directly from OrbitQu nodes
+  const members: FamilyMember[] = useMemo(() => {
+    return familyTree.nodes.map(n => orbitNodeToFamilyMember(n, familyTree.nodes));
+  }, [familyTree]);
 
   // Medsos Posts Data
   const [posts, setPosts] = useState<PostItem[]>(() => {
@@ -597,17 +306,56 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   });
 
   // Tree View Filter & Interactive Controls
-  const [treeFilter, setTreeFilter] = useState<'all' | 'inti' | 'ayah' | 'ibu'>('all');
+  const [treeFilter, setTreeFilter] = useState<'all' | 'inti' | 'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan'>('all');
+  const [generationFilter, setGenerationFilter] = useState<'all' | '-3' | '-2' | '-1' | '0' | '1' | '2' | '3'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [treeZoom, setTreeZoom] = useState<number>(1);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
 
+  // Theme Dark / Light State
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('wargaqu_leluhur_theme');
+      return saved === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      try {
+        localStorage.setItem('wargaqu_leluhur_theme', next);
+      } catch {}
+      showNotification(next === 'dark' ? '🌙 Tema Gelap (Dark Space) Aktif' : '☀️ Tema Terang (Light Heritage) Aktif');
+      return next;
+    });
+  };
+
   // Modals
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showEditMemberModal, setShowEditMemberModal] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showScanKKModal, setShowScanKKModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<boolean>(false);
+
+  // Edit Member Modal State
+  const [editNodeId, setEditNodeId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editOrder, setEditOrder] = useState('');
+  const [editRole, setEditRole] = useState('');
+  const [editGender, setEditGender] = useState<'L' | 'P'>('L');
+  const [editBirthYear, setEditBirthYear] = useState('');
+  const [editDeathYear, setEditDeathYear] = useState('');
+  const [editStatus, setEditStatus] = useState<'Hidup' | 'Almarhum'>('Hidup');
+  const [editOrigin, setEditOrigin] = useState('');
+  const [editSpouseName, setEditSpouseName] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editQuadrant, setEditQuadrant] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4'>('Q1');
+  const [editParentId, setEditParentId] = useState('');
 
   // Doa Malam Jumat State
   const [hadhorohCopied, setHadhorohCopied] = useState(false);
@@ -641,15 +389,6 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   const [formUyutSelect, setFormUyutSelect] = useState<string>('custom');
   const [formUyutCustom, setFormUyutCustom] = useState<string>('');
 
-  // Persist Data (v3 clean data)
-  useEffect(() => {
-    try {
-      localStorage.setItem('wargaqu_leluhur_members_v3', JSON.stringify(members));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [members]);
-
   useEffect(() => {
     try {
       localStorage.setItem('wargaqu_leluhur_posts_v3', JSON.stringify(posts));
@@ -670,17 +409,20 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   const deceasedMembers = members.filter(m => m.status === 'Almarhum');
   const deceasedAyah = deceasedMembers.filter(m => m.trah === 'ayah' || m.trah === 'inti');
   const deceasedIbu = deceasedMembers.filter(m => m.trah === 'ibu');
+  const deceasedPasanganAyah = deceasedMembers.filter(m => m.trah === 'ayah_pasangan');
+  const deceasedPasanganIbu = deceasedMembers.filter(m => m.trah === 'ibu_pasangan');
 
   // Generate Hadhoroh Doa Teks siap salin
   const generateHadhorohText = () => {
     const header = `بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\n*PENGINGAT DOA MALAM JUMAT - HADHOROH LELUHURQU*\n*Trah Besar Hendriana (Kuningan & Bogor)*\n\nIlaa hadhrotin Nabiyyil Musthafa Muhammadin SAW, wa 'alaa aalihi wa ash-habihi ajma'in... Al-Fatihah.\n\nTsumma ilaa arwahi aabaa-inaa wa ummahaatinaa wa ajdaadinaa wa jaddaatinaa (Khusushon Para Leluhur):\n`;
 
-    const daftarAyah = deceasedAyah.map((m, i) => `  ${i + 1}. Almarhum ${m.name} ${m.binBinti || ''} (${m.kinshipTitle || 'Trah Kuningan'})`).join('\n');
-    const daftarIbu = deceasedIbu.map((m, i) => `  ${i + 1}. Almarhum/ah ${m.name} ${m.binBinti || ''} (${m.kinshipTitle || 'Trah Bogor'})`).join('\n');
+    const daftarAyah = deceasedAyah.map((m, i) => `  ${i + 1}. Almarhum ${m.name} ${m.binBinti || ''} (${m.kinshipTitle || 'Trah Ayah'})`).join('\n');
+    const daftarIbu = deceasedIbu.map((m, i) => `  ${i + 1}. Almarhum/ah ${m.name} ${m.binBinti || ''} (${m.kinshipTitle || 'Trah Ibu'})`).join('\n');
+    const daftarPasangan = [...deceasedPasanganAyah, ...deceasedPasanganIbu].map((m, i) => `  ${i + 1}. Almarhum/ah ${m.name} ${m.binBinti || ''} (${m.kinshipTitle || 'Trah Pasangan'})`).join('\n');
 
     const footer = `\n\nTsumma ilaa jami'i ahlil qubur minal muslimina wal muslimat wal mu'minina wal mu'minat min masyaariqil ardhi ilaa maghaaribiha... Allahummaghfir lahum, warhamhum, wa 'aafihim, wa'fu 'anhum. Lahumul FAATIHAH. 🤲\n\n(Dibagikan melalui Modul LeluhurQu - Ekosistem WargaQu)`;
 
-    return `${header}\n*JALUR TRAH AYAH (Kuningan):*\n${daftarAyah || '  -'}\n\n*JALUR TRAH IBU (Bogor):*\n${daftarIbu || '  -'}${footer}`;
+    return `${header}\n*JALUR TRAH AYAH (Kuningan/Cianjur):*\n${daftarAyah || '  -'}\n\n*JALUR TRAH IBU (Bogor):*\n${daftarIbu || '  -'}\n\n*JALUR TRAH PASANGAN (Besan/Mertua):*\n${daftarPasangan || '  -'}${footer}`;
   };
 
   const handleCopyHadhoroh = () => {
@@ -697,14 +439,14 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   };
 
-  // Export JSON Backup
+  // Export JSON Backup (OrbitQu Tree Single Source of Truth)
   const handleExportJSON = () => {
     const dataBackup = {
       app: 'WargaQu - LeluhurQu Heritage System',
       exportDate: new Date().toISOString(),
       familyHead: 'Hendriana (HQ-2026-001)',
-      membersCount: members.length,
-      members,
+      membersCount: familyTree.nodes.length,
+      familyTree,
       posts
     };
     const jsonStr = JSON.stringify(dataBackup, null, 2);
@@ -712,10 +454,10 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Silsilah_LeluhurQu_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `Silsilah_LeluhurQu_OrbitQu_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('File cadangan silsilah (.json) berhasil diunduh!');
+    showNotification('File cadangan silsilah & OrbitQu (.json) berhasil diunduh!');
   };
 
   // Import JSON Backup
@@ -726,14 +468,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     reader.onload = evt => {
       try {
         const parsed = JSON.parse(evt.target?.result as string);
-        if (parsed.members && Array.isArray(parsed.members)) {
-          setMembers(parsed.members);
+        if (parsed.familyTree && Array.isArray(parsed.familyTree.nodes)) {
+          setFamilyTree(parsed.familyTree);
           if (parsed.posts && Array.isArray(parsed.posts)) {
             setPosts(parsed.posts);
           }
-          showNotification('Berhasil memulihkan data silsilah keluarga dari file cadangan!');
+          showNotification('Berhasil memulihkan data silsilah & OrbitQu dari file cadangan!');
+        } else if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          setFamilyTree(parsed);
+          showNotification('Berhasil memulihkan data OrbitQu dari file cadangan!');
         } else {
-          showNotification('Format file JSON tidak sesuai struktur LeluhurQu.');
+          showNotification('Format file JSON tidak sesuai struktur LeluhurQu / OrbitQu.');
         }
       } catch {
         showNotification('Gagal membaca file JSON cadangan.');
@@ -742,7 +487,115 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     reader.readAsText(file);
   };
 
-  // Add Member with Ayah, Kakek, and Uyut Lineage Determination
+  // Jump to OrbitQu with target focus
+  const handleOpenInOrbit = (nodeId: string) => {
+    setTargetOrbitNodeId(nodeId);
+    setActiveTab('orbitqu');
+    const matched = familyTree.nodes.find(n => n.id === nodeId);
+    showNotification(`Membuka dan menyorot ${matched?.name || 'anggota'} di rasi bintang OrbitQu 🪐`);
+  };
+
+  // Open Edit Member Modal
+  const handleOpenEditMember = (node: OrbitNode | FamilyMember) => {
+    const rawNode = familyTree.nodes.find(n => n.id === node.id);
+    if (!rawNode) return;
+    setEditNodeId(rawNode.id);
+    setEditName(rawNode.name);
+    setEditOrder(rawNode.order || '');
+    setEditRole(rawNode.role || '');
+    setEditGender(rawNode.gender || 'L');
+    setEditBirthYear(rawNode.birthYear || '');
+    setEditDeathYear(rawNode.deathYear || '');
+    setEditStatus(rawNode.status || 'Hidup');
+    setEditOrigin(rawNode.origin || '');
+    setEditSpouseName(rawNode.spouseName || '');
+    setEditNotes(rawNode.notes || '');
+    setEditQuadrant(rawNode.quadrant || 'Q1');
+    setEditParentId(rawNode.parentId || '');
+    setShowEditMemberModal(true);
+  };
+
+  // Submit Edit Member
+  const handleEditMemberSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) {
+      showNotification('Nama anggota tidak boleh kosong.');
+      return;
+    }
+    setFamilyTree(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => {
+        if (n.id === editNodeId) {
+          return {
+            ...n,
+            name: editName.trim(),
+            order: editOrder.trim() || n.order,
+            role: editRole.trim() || undefined,
+            gender: editGender,
+            birthYear: editBirthYear.trim() || undefined,
+            deathYear: editStatus === 'Almarhum' ? (editDeathYear.trim() || undefined) : undefined,
+            status: editStatus,
+            origin: editOrigin.trim() || undefined,
+            spouseName: editSpouseName.trim() || undefined,
+            notes: editNotes.trim() || undefined,
+            quadrant: editQuadrant,
+            parentId: editParentId || undefined
+          };
+        }
+        return n;
+      })
+    }));
+    setShowEditMemberModal(false);
+    if (selectedMember && selectedMember.id === editNodeId) {
+      const updatedNode = familyTree.nodes.find(n => n.id === editNodeId);
+      if (updatedNode) {
+        setSelectedMember(orbitNodeToFamilyMember({
+          ...updatedNode,
+          name: editName.trim(),
+          status: editStatus,
+          origin: editOrigin.trim() || undefined,
+          birthYear: editBirthYear.trim() || undefined,
+          deathYear: editStatus === 'Almarhum' ? (editDeathYear.trim() || undefined) : undefined
+        }, familyTree.nodes));
+      }
+    }
+    showNotification(`Data ${editName} berhasil diperbarui di Silsilah & OrbitQu!`);
+  };
+
+  // Delete Member
+  const handleDeleteMember = (nodeId: string) => {
+    const target = familyTree.nodes.find(n => n.id === nodeId);
+    if (!target) return;
+    if (target.isUser) {
+      showNotification('Node User Utama tidak dapat dihapus.');
+      return;
+    }
+    setFamilyTree(prev => ({
+      ...prev,
+      nodes: prev.nodes.filter(n => n.id !== nodeId)
+    }));
+    setSelectedMember(null);
+    showNotification(`Data ${target.name} berhasil dihapus dari Silsilah & OrbitQu.`);
+  };
+
+  // Open Add Child modal from parent node
+  const handleOpenAddChild = (parentMember: FamilyMember) => {
+    const parentNode = familyTree.nodes.find(n => n.id === parentMember.id);
+    if (!parentNode) return;
+    const nextGen = Math.min(3, (parentNode.gen ?? 0) + 1);
+    setFormKinship(nextGen === 1 ? 'Anak' : nextGen === 2 ? 'Cucu' : nextGen === 3 ? 'Cicit' : 'Keturunan');
+    setFormAyahSelect(parentNode.name);
+    setFormAyahCustom(parentNode.name);
+    setFormTrah(
+      parentNode.quadrant === 'Q2' ? 'ibu' :
+      parentNode.quadrant === 'Q3' ? 'ayah_pasangan' :
+      parentNode.quadrant === 'Q4' ? 'ibu_pasangan' : 'ayah'
+    );
+    setSelectedMember(null);
+    setShowAddMemberModal(true);
+  };
+
+  // Add Member with Direct OrbitQu Integration
   const handleAddMemberSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
@@ -750,71 +603,44 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       return;
     }
 
-    const finalAyah = formAyahSelect === 'custom' ? formAyahCustom.trim() : formAyahSelect;
-    const finalKakek = formKakekSelect === 'custom' ? formKakekCustom.trim() : formKakekSelect;
-    const finalUyut = formUyutSelect === 'custom' ? formUyutCustom.trim() : formUyutSelect;
+    let gen = 1;
+    if (formKinship.includes('Uyut') || formKinship.includes('Buyut')) gen = -3;
+    else if (formKinship.includes('Aki') || formKinship.includes('Nini') || formKinship.includes('Kakek') || formKinship.includes('Nenek')) gen = -2;
+    else if (formKinship.includes('Ayah') || formKinship.includes('Ibu') || formKinship.includes('Uwa') || formKinship.includes('Mang') || formKinship.includes('Bibi') || formKinship.includes('Paman')) gen = -1;
+    else if (formKinship.includes('Saudara') || formKinship.includes('Kakak') || formKinship.includes('Adik')) gen = 0;
+    else if (formKinship.includes('Anak')) gen = 1;
+    else if (formKinship.includes('Cucu') || formKinship.includes('Incu')) gen = 2;
+    else if (formKinship.includes('Cicit')) gen = 3;
 
-    const newEntry: FamilyMember = {
-      id: 'fam_' + Date.now(),
+    let q: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q1';
+    if (formTrah === 'ibu') q = 'Q2';
+    else if (formTrah === 'ayah_pasangan') q = 'Q3';
+    else if (formTrah === 'ibu_pasangan') q = 'Q4';
+
+    const finalAyah = formAyahSelect === 'custom' ? formAyahCustom.trim() : formAyahSelect;
+    const parentNode = finalAyah ? familyTree.nodes.find(n => n.name.toLowerCase().includes(finalAyah.toLowerCase())) : undefined;
+
+    const newOrbitNode: OrbitNode = {
+      id: 'node_' + Date.now() + Math.random().toString(36).substring(2, 6),
       name: formName.trim(),
-      nickname: formNickname.trim() || undefined,
-      binBinti: formBinBinti.trim()
-        ? (formGender === 'L' ? `bin ${formBinBinti.trim()}` : `binti ${formBinBinti.trim()}`)
-        : (finalAyah ? (formGender === 'L' ? `bin ${finalAyah}` : `binti ${finalAyah}`) : undefined),
-      kinshipTitle: formKinship,
-      role: formRole || formKinship,
-      relation: formRelation,
-      trah: formTrah,
+      gen,
+      order: formNickname ? `${formKinship} (${formNickname})` : formKinship,
+      quadrant: parentNode ? parentNode.quadrant : q,
+      claimed: true,
       gender: formGender,
+      role: formRole || formKinship,
+      parentId: parentNode ? parentNode.id : undefined,
       birthYear: formBirthYear || '2020',
       deathYear: formStatus === 'Almarhum' ? (formDeathYear || undefined) : undefined,
       status: formStatus,
       origin: formOrigin || undefined,
-      notes: formNotes || undefined,
-      parentName: finalAyah || undefined,
-      kakekName: finalKakek || undefined,
-      uyutName: finalUyut || undefined,
+      notes: formNotes || undefined
     };
 
-    setMembers(prev => [...prev, newEntry]);
-
-    // Also sync to OrbitQu tree in localStorage if available
-    try {
-      const savedOrbit = localStorage.getItem('wargaqu_orbitqu_tree_v4');
-      if (savedOrbit) {
-        const orbitData = JSON.parse(savedOrbit);
-        if (orbitData && Array.isArray(orbitData.nodes)) {
-          let gen = 0;
-          if (formKinship.includes('Uyut')) gen = -3;
-          else if (formKinship.includes('Aki') || formKinship.includes('Nini')) gen = -2;
-          else if (formKinship.includes('Ayah') || formKinship.includes('Uwa') || formKinship.includes('Mang') || formKinship.includes('Bibi')) gen = -1;
-          else if (formKinship.includes('Anak')) gen = 1;
-          else if (formKinship.includes('Cucu')) gen = 2;
-
-          let q: 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q1';
-          if (formTrah === 'ibu') q = 'Q2';
-          else if (formTrah === 'ayah_pasangan') q = 'Q3';
-          else if (formTrah === 'ibu_pasangan') q = 'Q4';
-
-          const matchingParentNode = finalAyah ? orbitData.nodes.find((n: any) => n.name.toLowerCase().includes(finalAyah.toLowerCase())) : null;
-
-          orbitData.nodes.push({
-            id: newEntry.id,
-            name: newEntry.name,
-            gen,
-            order: newEntry.kinshipTitle || 'Baru',
-            quadrant: q,
-            claimed: true,
-            role: newEntry.role,
-            parentId: matchingParentNode ? matchingParentNode.id : undefined
-          });
-
-          localStorage.setItem('wargaqu_orbitqu_tree_v4', JSON.stringify(orbitData));
-        }
-      }
-    } catch (err) {
-      console.warn('Orbit sync skipped:', err);
-    }
+    setFamilyTree(prev => ({
+      ...prev,
+      nodes: [...prev.nodes, newOrbitNode]
+    }));
 
     setShowAddMemberModal(false);
     // Reset form
@@ -825,7 +651,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     setFormAyahCustom('');
     setFormKakekCustom('');
     setFormUyutCustom('');
-    showNotification(`Alhamdulillah, ${newEntry.name} berhasil ditambahkan dan garis orbit dirapikan!`);
+    showNotification(`Alhamdulillah, ${newOrbitNode.name} berhasil ditambahkan ke silsilah & OrbitQu!`);
   };
 
   // Like & Comment
@@ -915,21 +741,57 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     }, 1800);
   };
 
-  // Filtered members for Tree View
-  const displayedMembers = members.filter(m => {
-    if (treeFilter === 'all') return true;
-    if (treeFilter === 'inti') return m.trah === 'inti';
-    if (treeFilter === 'ayah') return m.trah === 'ayah';
-    if (treeFilter === 'ibu') return m.trah === 'ibu';
-    return true;
-  });
+  // Filtered members for Tree View (Multi-Trah, Multi-Generation, Searchable)
+  const displayedMembers = useMemo(() => {
+    return members.filter(m => {
+      // Filter Trah
+      if (treeFilter === 'inti') {
+        const raw = familyTree.nodes.find(n => n.id === m.id);
+        const isCore = raw?.isUser || raw?.id === 'user_node' || raw?.parentId === 'user_node' || (raw?.gen === 0 && raw?.quadrant === 'Q1');
+        if (!isCore) return false;
+      } else if (treeFilter === 'ayah') {
+        if (m.trah !== 'ayah') return false;
+      } else if (treeFilter === 'ibu') {
+        if (m.trah !== 'ibu') return false;
+      } else if (treeFilter === 'ayah_pasangan') {
+        if (m.trah !== 'ayah_pasangan') return false;
+      } else if (treeFilter === 'ibu_pasangan') {
+        if (m.trah !== 'ibu_pasangan') return false;
+      }
+
+      // Filter Generasi
+      if (generationFilter !== 'all') {
+        const genNum = parseInt(generationFilter, 10);
+        const raw = familyTree.nodes.find(n => n.id === m.id);
+        if (raw?.gen !== genNum) return false;
+      }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = m.name.toLowerCase().includes(q);
+        const matchRole = (m.role || '').toLowerCase().includes(q);
+        const matchOrigin = (m.origin || '').toLowerCase().includes(q);
+        const matchKinship = (m.kinshipTitle || '').toLowerCase().includes(q);
+        if (!matchName && !matchRole && !matchOrigin && !matchKinship) return false;
+      }
+
+      return true;
+    });
+  }, [members, treeFilter, generationFilter, searchQuery, familyTree]);
 
   return (
-    <div className={`w-full h-full ${activeTab === 'orbitqu' ? 'bg-[#0b0f19]' : 'bg-[#f0fdf4]'} font-sans antialiased flex flex-col relative select-none overflow-hidden text-slate-800`}>
+    <div className={`w-full h-full ${theme === 'dark' ? 'bg-[#070b14] text-slate-100' : 'bg-[#f0fdf4] text-slate-800'} font-sans antialiased flex flex-col relative select-none overflow-hidden transition-colors duration-200`}>
       {activeTab === 'orbitqu' ? (
         <div className="flex-1 w-full h-full relative overflow-hidden pb-14">
           <OrbitQuView
+            familyTree={familyTree}
+            onUpdateFamilyTree={setFamilyTree}
+            initialSelectedNodeId={targetOrbitNodeId}
+            onClearInitialSelectedNodeId={() => setTargetOrbitNodeId(null)}
             onBackToLeluhurQu={() => setActiveTab('silsilah')}
+            theme={theme}
+            onToggleTheme={toggleTheme}
             onOpenInSilsilah={(name, id) => {
               setActiveTab('silsilah');
               const matched = members.find(m => (id && m.id === id) || m.name.toLowerCase().includes(name.toLowerCase()));
@@ -947,7 +809,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       ) : (
         <>
           {/* TOP HEADER BAR (WARGAQU EMERALD SIGNATURE PALETTE) */}
-          <header className="bg-gradient-to-r from-[#047857] via-[#059669] to-[#047857] text-white px-4 py-3.5 flex justify-between items-center shadow-md z-30 shrink-0">
+          <header className={`${theme === 'dark' ? 'bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-b border-emerald-900/60' : 'bg-gradient-to-r from-[#047857] via-[#059669] to-[#047857]'} text-white px-4 py-3.5 flex justify-between items-center shadow-md z-30 shrink-0`}>
         <div className="flex items-center space-x-2.5">
           <button
             onClick={onBackToWarga}
@@ -976,9 +838,19 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
 
         {/* Quick Top Right Actions */}
         <div className="flex items-center space-x-1.5">
+          {/* Tombol Tema Dark / Light */}
+          <button
+            onClick={toggleTheme}
+            className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-[#5eead4] border border-emerald-400/50 text-[11px] font-bold px-2 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
+            title={`Beralih ke Tema ${theme === 'dark' ? 'Terang (Light Heritage)' : 'Gelap (Dark Space)'}`}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-300" /> : <Moon className="w-3.5 h-3.5 text-[#5eead4]" />}
+            <span>{theme === 'dark' ? 'Terang' : 'Gelap'}</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('orbitqu')}
-            className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-[#5eead4] border border-emerald-400/50 text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
+            className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-[#5eead4] border border-emerald-400/50 text-[11px] font-bold px-2 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
             title="Buka Mode Orbit Silsilah Tata Surya"
           >
             <Compass className="w-3.5 h-3.5 text-[#5eead4]" />
@@ -986,11 +858,11 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           </button>
           <button
             onClick={() => setShowScanKKModal(true)}
-            className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-white border border-emerald-400/50 text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
+            className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-white border border-emerald-400/50 text-[11px] font-bold px-2 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
             title="Scan Kartu Keluarga (Privacy-First)"
           >
             <Camera className="w-3.5 h-3.5 text-[#5eead4]" />
-            <span className="text-white">Scan KK</span>
+            <span className="text-white hidden sm:inline">Scan KK</span>
           </button>
           <button
             onClick={() => setShowPdfModal(true)}
@@ -1082,37 +954,37 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* POHON SILSILAH: TOOLBAR FILTER & ZOOM CONTROLS */}
-            <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-emerald-100 space-y-3">
+            <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl p-3.5 shadow-sm border space-y-3 transition-colors`}>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-1.5">
-                  <GitFork className="w-4 h-4 text-emerald-700 rotate-180" />
-                  <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                  <GitFork className={`w-4 h-4 rotate-180 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                  <h3 className={`font-bold text-xs uppercase tracking-wider ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
                     Pohon Silsilah Keluarga
                   </h3>
                 </div>
 
                 {/* Zoom & Action Controls */}
-                <div className="flex items-center space-x-1 bg-emerald-50 p-1 rounded-xl border border-emerald-200">
+                <div className={`flex items-center space-x-1 p-1 rounded-xl border ${theme === 'dark' ? 'bg-slate-950 border-slate-800 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
                   <button
                     onClick={() => setTreeZoom(z => Math.max(0.7, z - 0.1))}
-                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition"
+                    className="p-1 hover:opacity-75 rounded transition"
                     title="Perkecil Tampilan"
                   >
                     <ZoomOut className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-[10px] font-bold text-emerald-800 px-1 font-mono">
+                  <span className="text-[10px] font-bold px-1 font-mono">
                     {Math.round(treeZoom * 100)}%
                   </span>
                   <button
                     onClick={() => setTreeZoom(z => Math.min(1.4, z + 0.1))}
-                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition"
+                    className="p-1 hover:opacity-75 rounded transition"
                     title="Perbesar Tampilan"
                   >
                     <ZoomIn className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => setTreeZoom(1)}
-                    className="p-1 text-emerald-800 hover:bg-emerald-200 rounded transition"
+                    className="p-1 hover:opacity-75 rounded transition"
                     title="Reset Ukuran"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -1120,188 +992,333 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 </div>
               </div>
 
-              {/* Trah Filter Pill Buttons */}
-              <div className="grid grid-cols-4 gap-1.5 bg-[#f0fdf4] p-1 rounded-xl border border-emerald-100 text-[10px]">
-                <button
-                  onClick={() => setTreeFilter('all')}
-                  className={`py-1.5 rounded-lg font-bold transition ${treeFilter === 'all' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-800'}`}
-                >
-                  Semua ({members.length})
-                </button>
-                <button
-                  onClick={() => setTreeFilter('inti')}
-                  className={`py-1.5 rounded-lg font-bold transition ${treeFilter === 'inti' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-800'}`}
-                >
-                  Inti
-                </button>
-                <button
-                  onClick={() => setTreeFilter('ayah')}
-                  className={`py-1.5 rounded-lg font-bold transition ${treeFilter === 'ayah' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-800'}`}
-                >
-                  Trah Ayah
-                </button>
-                <button
-                  onClick={() => setTreeFilter('ibu')}
-                  className={`py-1.5 rounded-lg font-bold transition ${treeFilter === 'ibu' ? 'bg-emerald-700 text-white shadow-xs' : 'text-slate-600 hover:text-emerald-800'}`}
-                >
-                  Trah Ibu
-                </button>
+              {/* Search Bar & Trah Filter Controls */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Cari nama anggota, panggilan, atau kota asal..."
+                    className={`w-full border rounded-xl pl-8 pr-8 py-1.5 text-xs focus:outline-none transition ${
+                      theme === 'dark'
+                        ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
+                        : 'bg-[#f0fdf4] border-emerald-200 text-slate-800 placeholder-slate-400 focus:border-emerald-600'
+                    }`}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-300"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Trah Filter Pill Buttons (All 4 Quadrants & Core Family) */}
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[10px]">
+                  <button
+                    onClick={() => setTreeFilter('all')}
+                    className={`py-1 px-2.5 rounded-lg font-bold shrink-0 transition ${
+                      treeFilter === 'all'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : (theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-emerald-50 text-slate-600 hover:text-emerald-800')
+                    }`}
+                  >
+                    Semua ({members.length})
+                  </button>
+                  <button
+                    onClick={() => setTreeFilter('inti')}
+                    className={`py-1 px-2.5 rounded-lg font-bold shrink-0 transition ${
+                      treeFilter === 'inti'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : (theme === 'dark' ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-emerald-50 text-slate-600 hover:text-emerald-800')
+                    }`}
+                  >
+                    Keluarga Inti
+                  </button>
+                  <button
+                    onClick={() => setTreeFilter('ayah')}
+                    className={`py-1 px-2.5 rounded-lg font-bold shrink-0 transition flex items-center gap-1 ${
+                      treeFilter === 'ayah'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : (theme === 'dark' ? 'bg-sky-950/60 text-sky-300 border border-sky-800/40' : 'bg-sky-50 text-sky-800 hover:bg-sky-100')
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+                    <span>Trah Ayah (Q1)</span>
+                  </button>
+                  <button
+                    onClick={() => setTreeFilter('ibu')}
+                    className={`py-1 px-2.5 rounded-lg font-bold shrink-0 transition flex items-center gap-1 ${
+                      treeFilter === 'ibu'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : (theme === 'dark' ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100')
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Trah Ibu (Q2)</span>
+                  </button>
+                  <button
+                    onClick={() => setTreeFilter('ayah_pasangan')}
+                    className={`py-1 px-2.5 rounded-lg font-bold shrink-0 transition flex items-center gap-1 ${
+                      treeFilter === 'ayah_pasangan'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : (theme === 'dark' ? 'bg-rose-950/60 text-rose-300 border border-rose-800/40' : 'bg-rose-50 text-rose-800 hover:bg-rose-100')
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                    <span>Trah Ayah Pasangan (Q3)</span>
+                  </button>
+                  <button
+                    onClick={() => setTreeFilter('ibu_pasangan')}
+                    className={`py-1 px-2.5 rounded-lg font-bold shrink-0 transition flex items-center gap-1 ${
+                      treeFilter === 'ibu_pasangan'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : (theme === 'dark' ? 'bg-purple-950/60 text-purple-300 border border-purple-800/40' : 'bg-purple-50 text-purple-800 hover:bg-purple-100')
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                    <span>Trah Ibu Pasangan (Q4)</span>
+                  </button>
+                </div>
+
+                {/* Generasi / Orbit Filter */}
+                <div className="flex gap-1 overflow-x-auto no-scrollbar py-0.5 text-[9px]">
+                  {[
+                    { id: 'all', label: 'Semua Orbit' },
+                    { id: '-3', label: 'Pusat Uyut' },
+                    { id: '-2', label: 'Orbit 1 (Kakek)' },
+                    { id: '-1', label: 'Orbit 2 (Ayah/Paman)' },
+                    { id: '0', label: 'Orbit 3 (User/Saudara)' },
+                    { id: '1', label: 'Orbit 4 (Anak)' },
+                    { id: '2', label: 'Orbit 5 (Cucu)' },
+                    { id: '3', label: 'Orbit 6 (Cicit)' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setGenerationFilter(tab.id as any)}
+                      className={`px-2 py-0.5 rounded-full font-medium shrink-0 transition ${
+                        generationFilter === tab.id
+                          ? 'bg-emerald-600 text-white font-bold'
+                          : (theme === 'dark' ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* VISUAL TREE CANVAS CONTAINER (RESPONSIVE & SCROLLABLE) */}
               <div
                 style={{ transform: `scale(${treeZoom})`, transformOrigin: 'top left' }}
-                className="transition-transform duration-150 space-y-3 overflow-x-auto p-1"
+                className="transition-transform duration-150 space-y-4 overflow-x-auto p-1"
               >
-                {/* 1. Generasi Buyut / Moyang */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px] font-bold text-emerald-900 border-b border-emerald-100 pb-1">
-                    <span className="uppercase tracking-wider">Generasi Buyut / Moyang (Uyut)</span>
-                    <span className="text-slate-400 font-normal">Gelar Kekerabatan: Uyut</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {displayedMembers.filter(m => m.relation === 'buyut').map(m => (
-                      <div
-                        key={m.id}
-                        onClick={() => setSelectedMember(m)}
-                        className="bg-amber-50/70 hover:bg-amber-100/70 border border-amber-200 rounded-xl p-2.5 cursor-pointer transition shadow-2xs space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-amber-800 bg-amber-200/70 px-1.5 py-0.2 rounded">
-                            {m.kinshipTitle || 'Uyut'}
-                          </span>
-                          <span className="text-[9px] text-slate-500 font-mono">
-                            {getYearRangeDisplay(m)}
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-900 leading-tight">{m.name}</h4>
-                        <p className="text-[10px] text-slate-600">{m.binBinti} • {m.origin}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Helper Card Renderer */}
+                {[
+                  {
+                    gen: -3,
+                    title: 'Pusat Kuadran: Sesepuh Uyut / Aki Moyang',
+                    sub: 'Pusat Rasi Bintang Tata Surya',
+                    badgeColor: 'bg-amber-100 text-amber-900 border-amber-300'
+                  },
+                  {
+                    gen: -2,
+                    title: 'Orbit 1: Generasi Kakek & Nenek (Aki & Nini)',
+                    sub: '3 Cabang Utama / Kakek',
+                    badgeColor: 'bg-sky-100 text-sky-900 border-sky-300'
+                  },
+                  {
+                    gen: -1,
+                    title: 'Orbit 2: Generasi Ayah, Ibu, Uwa, Paman & Bibi',
+                    sub: '10 Bersaudara & Paman Bibi Trah',
+                    badgeColor: 'bg-teal-100 text-teal-900 border-teal-300'
+                  },
+                  {
+                    gen: 0,
+                    title: 'Orbit 3: Poros Inti — User (Hendriana) & Saudara Kandung',
+                    sub: 'User No. 3, Pasangan Siti Nurhaliza & 6 Bersaudara',
+                    badgeColor: 'bg-emerald-100 text-emerald-950 border-emerald-400 font-extrabold'
+                  },
+                  {
+                    gen: 1,
+                    title: 'Orbit 4: Generasi Anak (Penerus Nasab)',
+                    sub: 'Putra & Putri Generasi Ke-4',
+                    badgeColor: 'bg-indigo-100 text-indigo-900 border-indigo-300'
+                  },
+                  {
+                    gen: 2,
+                    title: 'Orbit 5: Generasi Cucu (Incu)',
+                    sub: 'Keturunan Generasi Ke-5',
+                    badgeColor: 'bg-purple-100 text-purple-900 border-purple-300'
+                  },
+                  {
+                    gen: 3,
+                    title: 'Orbit 6: Generasi Cicit (Terluar)',
+                    sub: 'Keturunan Orbit Terluar',
+                    badgeColor: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300'
+                  }
+                ].map(section => {
+                  const sectionNodes = displayedMembers.filter(m => {
+                    const raw = familyTree.nodes.find(n => n.id === m.id);
+                    return raw?.gen === section.gen;
+                  });
 
-                {/* 2. Generasi Kakek & Nenek (Aki & Nini) Termasuk Dukungan Multi-Pasangan */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[10px] font-bold text-emerald-900 border-b border-emerald-100 pb-1">
-                    <span className="uppercase tracking-wider">Generasi Kakek &amp; Nenek (Aki &amp; Nini)</span>
-                    <span className="text-emerald-700 font-normal">Mendukung Multi-Pasangan</span>
-                  </div>
+                  if (sectionNodes.length === 0) return null;
 
-                  {displayedMembers.filter(m => m.relation === 'kakek' || m.relation === 'nenek').map(m => (
-                    <div
-                      key={m.id}
-                      onClick={() => setSelectedMember(m)}
-                      className="bg-white hover:bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 cursor-pointer transition shadow-2xs space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs ${m.gender === 'L' ? 'bg-blue-600' : 'bg-pink-600'}`}>
-                            {m.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <h4 className="text-xs font-bold text-slate-900">{m.name}</h4>
-                              <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium">
-                                {m.kinshipTitle}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-slate-500">
-                              {m.binBinti} • {getYearRangeDisplay(m)} • {m.origin}
-                            </p>
-                          </div>
+                  return (
+                    <div key={section.gen} className="space-y-2">
+                      <div className={`flex items-center justify-between text-[11px] font-bold border-b pb-1 ${
+                        theme === 'dark' ? 'text-slate-200 border-slate-800' : 'text-slate-800 border-emerald-200/70'
+                      }`}>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[9px] px-2 py-0.5 rounded-full border ${section.badgeColor}`}>
+                            Gen {section.gen > 0 ? `+${section.gen}` : section.gen}
+                          </span>
+                          <span className="uppercase tracking-wider font-extrabold">{section.title}</span>
                         </div>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${m.status === 'Almarhum' ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-800'}`}>
-                          {m.status}
+                        <span className={`text-[10px] font-mono font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-800'}`}>
+                          {sectionNodes.length} Anggota
                         </span>
                       </div>
 
-                      {/* Tampilan Khusus Multi-Pasangan (Poligami / Multi-Istri/Suami) */}
-                      {m.spouses && m.spouses.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-dashed border-emerald-100 space-y-1.5">
-                          <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">
-                            Pasangan &amp; Cabang Keturunan ({m.spouses.length} Jalur Pasangan):
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            {m.spouses.map(sp => (
-                              <div
-                                key={sp.id}
-                                className="bg-[#f0fdf4] border border-emerald-200/70 p-2 rounded-lg text-[10px] space-y-0.5"
-                              >
-                                <div className="flex justify-between items-center">
-                                  <span className="font-bold text-emerald-950">{sp.name}</span>
-                                  <span className="text-[9px] text-slate-500">
-                                    {sp.status === 'Almarhum' ? `${sp.birthYear || '?'} - ${sp.deathYear || 'Wafat'}` : `Lahir ${sp.birthYear}`}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {sectionNodes.map(m => {
+                          const rawNode = familyTree.nodes.find(n => n.id === m.id);
+                          const directChildren = familyTree.nodes.filter(n => n.parentId === m.id);
+                          const isUser = rawNode?.isUser || rawNode?.id === 'user_node';
+
+                          return (
+                            <div
+                              key={m.id}
+                              className={`border rounded-2xl p-3 transition space-y-2 relative group ${
+                                theme === 'dark'
+                                  ? (isUser ? 'bg-slate-900 border-2 border-emerald-500 shadow-md' : 'bg-slate-950/80 border-slate-800 hover:border-emerald-500/40 text-slate-100')
+                                  : (isUser ? 'bg-white border-2 border-emerald-500 shadow-sm' : 'bg-white hover:bg-emerald-50/50 border-emerald-100 text-slate-800')
+                              }`}
+                            >
+                              {/* Top Bar: Trah badge, Gender avatar, Name, Status */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div
+                                  onClick={() => setSelectedMember(m)}
+                                  className="flex items-start space-x-2.5 cursor-pointer flex-1 min-w-0"
+                                >
+                                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-xs shrink-0 ${m.gender === 'L' ? 'bg-gradient-to-br from-blue-500 to-blue-700' : 'bg-gradient-to-br from-pink-500 to-rose-600'}`}>
+                                    {m.name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <h4 className={`text-xs font-bold leading-tight truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                                        {m.name}
+                                      </h4>
+                                      {isUser && (
+                                        <span className="text-[9px] bg-emerald-600 text-white font-extrabold px-1.5 py-0.2 rounded">
+                                          User Utama
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className={`text-[10px] truncate mt-0.5 font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                      {m.kinshipTitle}
+                                    </p>
+                                    <p className={`text-[9px] font-mono truncate ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                      {m.binBinti || '-'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  <span className={`text-[9px] font-bold px-2 py-0.2 rounded-full ${
+                                    m.status === 'Almarhum'
+                                      ? (theme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-700')
+                                      : (theme === 'dark' ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/40' : 'bg-emerald-100 text-emerald-800')
+                                  }`}>
+                                    {m.status}
+                                  </span>
+                                  <span className={`text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    {getYearRangeDisplay(m)}
                                   </span>
                                 </div>
-                                <p className="text-[9px] text-emerald-700 font-medium">{sp.marriageNote}</p>
-                                <p className="text-[9px] text-slate-500">
-                                  Anak dari jalur ini: {sp.childrenIds.length} orang terdaftar
-                                </p>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+
+                              {/* Attached Spouse Badge (if any) */}
+                              {rawNode?.spouseName && (
+                                <div className={`border rounded-xl px-2.5 py-1 flex items-center justify-between text-[10px] ${
+                                  theme === 'dark' ? 'bg-rose-950/50 border-rose-900/60 text-rose-200' : 'bg-rose-50 border-rose-200 text-rose-800'
+                                }`}>
+                                  <span className="flex items-center gap-1 font-bold">
+                                    <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
+                                    <span>Pasangan: {rawNode.spouseName}</span>
+                                  </span>
+                                  <span className={`text-[9px] font-medium ${theme === 'dark' ? 'text-rose-300' : 'text-rose-600'}`}>
+                                    {rawNode.spouseGender === 'L' ? 'Suami' : 'Istri'}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Lineage & Info Row */}
+                              <div className={`flex items-center justify-between text-[10px] pt-1 border-t ${
+                                theme === 'dark' ? 'border-slate-800/80 text-slate-400' : 'border-slate-100 text-slate-500'
+                              }`}>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className={`w-3 h-3 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                                  <span>{m.origin || '-'}</span>
+                                </span>
+                                {directChildren.length > 0 && (
+                                  <span className={`font-bold px-2 py-0.2 rounded-full text-[9px] border ${
+                                    theme === 'dark' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/50' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  }`}>
+                                    👶 {directChildren.length} Keturunan
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Bottom Action Bar on Card */}
+                              <div className={`flex gap-1.5 pt-1 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-slate-100'}`}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenInOrbit(m.id);
+                                  }}
+                                  className="flex-1 bg-slate-900 hover:bg-slate-800 active:scale-95 text-[#5eead4] border border-emerald-500/40 text-[10px] font-bold py-1.5 rounded-xl flex items-center justify-center gap-1 transition shadow-2xs"
+                                  title="Sorot dan pusatkan bintang anggota di kanvas OrbitQu"
+                                >
+                                  <Compass className="w-3 h-3 text-[#5eead4]" />
+                                  <span>🪐 Sorot di OrbitQu</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedMember(m);
+                                  }}
+                                  className={`px-2.5 active:scale-95 text-[10px] font-bold py-1.5 rounded-xl transition ${
+                                    theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-emerald-300' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                                  }`}
+                                >
+                                  Profil
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditMember(m);
+                                  }}
+                                  className={`p-1.5 rounded-xl transition ${
+                                    theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900'
+                                  }`}
+                                  title="Edit data anggota ini"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  ))}
-                </div>
-
-                {/* 3. Generasi Orang Tua & Paman/Bibi (Uwa, Mang, Bibi) */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[10px] font-bold text-emerald-900 border-b border-emerald-100 pb-1">
-                    <span className="uppercase tracking-wider">Generasi Orang Tua, Uwa, Mang &amp; Bibi</span>
-                    <span className="text-slate-400 font-normal">Keluarga Inti &amp; Saudara</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {displayedMembers.filter(m => m.relation === 'ayah' || m.relation === 'ibu' || m.relation === 'paman_bibi').map(m => (
-                      <div
-                        key={m.id}
-                        onClick={() => setSelectedMember(m)}
-                        className="bg-white hover:bg-emerald-50/50 border border-emerald-100 rounded-xl p-2.5 cursor-pointer transition shadow-2xs space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${m.gender === 'L' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}`}>
-                            {m.kinshipTitle || m.role}
-                          </span>
-                          <span className="text-[9px] font-mono text-slate-500">
-                            {getYearRangeDisplay(m)}
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-900 leading-tight">{m.name}</h4>
-                        <p className="text-[10px] text-slate-500 truncate">{m.binBinti} • {m.origin}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 4. Generasi Anak & Cucu */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[10px] font-bold text-emerald-900 border-b border-emerald-100 pb-1">
-                    <span className="uppercase tracking-wider">Generasi Anak &amp; Cucu (Penerus Nasab)</span>
-                    <span className="text-emerald-700 font-normal">Cikal, Penengah &amp; Bungsu</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {displayedMembers.filter(m => m.relation === 'anak' || m.relation === 'cucu').map(m => (
-                      <div
-                        key={m.id}
-                        onClick={() => setSelectedMember(m)}
-                        className="bg-white hover:bg-emerald-50/50 border border-emerald-100 rounded-xl p-2.5 cursor-pointer transition shadow-2xs space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
-                            {m.kinshipTitle || 'Anak'}
-                          </span>
-                          <span className="text-[9px] font-mono text-slate-500">
-                            Th. {m.birthYear}
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-900 leading-tight">{m.name}</h4>
-                        <p className="text-[10px] text-slate-500">{m.binBinti}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  );
+                })}
               </div>
 
               {/* Action Buttons: Tambah Anggota */}
@@ -1322,13 +1339,13 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
         {activeTab === 'medsos' && (
           <div className="space-y-3.5 animate-in fade-in duration-200">
             {/* Sub-tab Jalur 4 Menu Trah: Ayah, Ibu, Ayah Pasangan, Ibu Pasangan */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-emerald-100/70 p-1.5 rounded-2xl border border-emerald-200">
+            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-1.5 ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-emerald-100/70 border-emerald-200'} p-1.5 rounded-2xl border`}>
               <button
                 onClick={() => setActiveMedsosTrah('ayah')}
                 className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
                   activeMedsosTrah === 'ayah'
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:bg-emerald-200/50'
+                    : theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-emerald-900 hover:bg-emerald-200/50'
                 }`}
               >
                 <span>Trah Ayah User</span>
@@ -1339,7 +1356,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
                   activeMedsosTrah === 'ibu'
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:bg-emerald-200/50'
+                    : theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-emerald-900 hover:bg-emerald-200/50'
                 }`}
               >
                 <span>Trah Ibu User</span>
@@ -1350,7 +1367,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
                   activeMedsosTrah === 'ayah_pasangan'
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:bg-emerald-200/50'
+                    : theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-emerald-900 hover:bg-emerald-200/50'
                 }`}
               >
                 <span>Trah Ayah Pasangan</span>
@@ -1361,7 +1378,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 className={`py-2 px-2 text-[11px] font-bold rounded-xl transition flex flex-col items-center justify-center text-center gap-0.5 ${
                   activeMedsosTrah === 'ibu_pasangan'
                     ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:bg-emerald-200/50'
+                    : theme === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-emerald-900 hover:bg-emerald-200/50'
                 }`}
               >
                 <span>Trah Ibu Pasangan</span>
@@ -1370,14 +1387,14 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Input Form Berbagi Cerita / Sejarah / Foto Jadul */}
-            <form onSubmit={handleCreatePost} className="bg-white border border-emerald-100 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+            <form onSubmit={handleCreatePost} className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} border rounded-2xl p-3.5 space-y-2.5 shadow-sm`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 bg-emerald-700 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-xs">
                     HU
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-slate-800">
+                    <span className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>
                       Bagikan ke {
                         activeMedsosTrah === 'ayah' ? 'Trah Ayah User' :
                         activeMedsosTrah === 'ibu' ? 'Trah Ibu User' :
@@ -1392,7 +1409,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 <select
                   value={newPostCategory}
                   onChange={e => setNewPostCategory(e.target.value as any)}
-                  className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold rounded-lg px-2 py-1 focus:outline-none"
+                  className={`${theme === 'dark' ? 'bg-slate-950 text-emerald-400 border-slate-700' : 'bg-emerald-50 text-emerald-800 border-emerald-200'} text-[10px] font-bold rounded-lg px-2 py-1 focus:outline-none border`}
                 >
                   <option value="Kisah Sejarah">Kisah Sejarah</option>
                   <option value="Foto Jadul">Foto Jadul</option>
@@ -1410,7 +1427,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                   activeMedsosTrah === 'ayah_pasangan' ? 'Trah Ayah Pasangan' : 'Trah Ibu Pasangan'
                 }...`}
                 rows={2}
-                className="w-full bg-[#f0fdf4] border border-emerald-200/80 rounded-xl p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600 resize-none"
+                className={`w-full ${theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500' : 'bg-[#f0fdf4] border-emerald-200/80 text-slate-800 placeholder-slate-400 focus:border-emerald-600'} rounded-xl p-2.5 text-xs focus:outline-none border resize-none`}
               />
 
               <div className="flex justify-between items-center pt-1">
@@ -1437,7 +1454,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               {posts.filter(p => p.trah === activeMedsosTrah).map(post => (
                 <div
                   key={post.id}
-                  className="bg-white border border-emerald-100 rounded-2xl p-4 space-y-2.5 shadow-sm"
+                  className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} border rounded-2xl p-4 space-y-2.5 shadow-sm`}
                 >
                   {/* Author Header */}
                   <div className="flex items-center justify-between">
@@ -1446,9 +1463,9 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                         {post.initials}
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-slate-900">
+                        <h4 className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
                           {post.authorName}{' '}
-                          <span className="text-[10px] text-slate-500 font-normal">
+                          <span className={`text-[10px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} font-normal`}>
                             ({post.authorRole})
                           </span>
                         </h4>
@@ -1457,31 +1474,31 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                         </span>
                       </div>
                     </div>
-                    <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
+                    <span className={`text-[9px] ${theme === 'dark' ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-emerald-50 text-emerald-800 border-emerald-200'} border px-2 py-0.5 rounded-full font-bold`}>
                       {post.category}
                     </span>
                   </div>
 
                   {/* Content */}
-                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+                  <p className={`text-xs ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'} leading-relaxed whitespace-pre-line`}>
                     {post.content}
                   </p>
 
                   {/* Actions Bar */}
-                  <div className="flex items-center justify-between pt-2 border-t border-emerald-50 text-xs text-slate-500">
+                  <div className={`flex items-center justify-between pt-2 border-t ${theme === 'dark' ? 'border-slate-800 text-slate-400' : 'border-emerald-50 text-slate-500'} text-xs`}>
                     <button
                       onClick={() => handleToggleLike(post.id)}
                       className={`flex items-center space-x-1.5 transition active:scale-95 ${
-                        post.isLiked ? 'text-rose-600 font-bold' : 'hover:text-rose-600'
+                        post.isLiked ? 'text-rose-500 font-bold' : 'hover:text-rose-500'
                       }`}
                     >
-                      <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-rose-600 text-rose-600' : ''}`} />
+                      <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
                       <span>{post.likes} Suka</span>
                     </button>
 
                     <button
                       onClick={() => setOpenCommentBox(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                      className="hover:text-emerald-700 flex items-center space-x-1.5 transition active:scale-95"
+                      className="hover:text-emerald-400 flex items-center space-x-1.5 transition active:scale-95"
                     >
                       <MessageCircle className="w-4 h-4" />
                       <span>{post.comments.length} Komentar</span>
@@ -1490,13 +1507,13 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
 
                   {/* Comment Section */}
                   {openCommentBox[post.id] && (
-                    <div className="pt-2 border-t border-emerald-50 space-y-2 animate-in fade-in duration-150">
+                    <div className={`pt-2 border-t ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-50'} space-y-2 animate-in fade-in duration-150`}>
                       {post.comments.length > 0 && (
-                        <div className="space-y-1.5 bg-[#f0fdf4] p-2.5 rounded-xl border border-emerald-100">
+                        <div className={`space-y-1.5 ${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-[#f0fdf4] border-emerald-100'} p-2.5 rounded-xl border`}>
                           {post.comments.map(c => (
                             <div key={c.id} className="text-[11px] leading-tight">
-                              <span className="font-bold text-emerald-800 mr-1.5">{c.author}:</span>
-                              <span className="text-slate-700">{c.text}</span>
+                              <span className={`font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-800'} mr-1.5`}>{c.author}:</span>
+                              <span className={theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}>{c.text}</span>
                               <span className="text-[9px] text-slate-400 block mt-0.5">{c.time}</span>
                             </div>
                           ))}
@@ -1515,7 +1532,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                             }
                           }}
                           placeholder="Tulis balasan silaturahmi..."
-                          className="flex-1 bg-[#f0fdf4] border border-emerald-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
+                          className={`flex-1 ${theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-500 focus:border-emerald-500' : 'bg-[#f0fdf4] border-emerald-200 text-slate-800 placeholder-slate-400 focus:border-emerald-600'} rounded-xl px-3 py-1.5 text-xs focus:outline-none border`}
                         />
                         <button
                           onClick={() => handleAddComment(post.id)}
@@ -1558,17 +1575,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Preview Teks Hadhoroh Siap Salin */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 space-y-3">
-              <div className="flex justify-between items-center border-b border-emerald-50 pb-2">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <HeartHandshake className="w-4 h-4 text-emerald-700" />
+            <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl p-4 shadow-sm border space-y-3`}>
+              <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-50'} pb-2`}>
+                <h4 className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} uppercase tracking-wider flex items-center gap-1.5`}>
+                  <HeartHandshake className={`w-4 h-4 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`} />
                   <span>Draf Teks Hadhoroh Siap Salin</span>
                 </h4>
-                <span className="text-[10px] text-emerald-700 font-bold font-mono">Lengkap Bin / Binti</span>
+                <span className={`text-[10px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'} font-bold font-mono`}>Lengkap Bin / Binti</span>
               </div>
 
               {/* Teks Box Preformatted */}
-              <div className="bg-[#f0fdf4] border border-emerald-200/80 rounded-xl p-3 text-xs text-slate-800 font-mono leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
+              <div className={`${theme === 'dark' ? 'bg-slate-950 border-slate-800 text-emerald-300' : 'bg-[#f0fdf4] border-emerald-200/80 text-slate-800'} border rounded-xl p-3 text-xs font-mono leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap`}>
                 {generateHadhorohText()}
               </div>
 
@@ -1593,30 +1610,30 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Daftar Leluhur Wafat yang Didokan */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 space-y-2.5">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl p-4 shadow-sm border space-y-2.5`}>
+              <h4 className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} uppercase tracking-wider`}>
                 Daftar Leluhur Almarhum &amp; Almarhumah
               </h4>
               <div className="space-y-2">
                 {deceasedMembers.map((m, idx) => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/80"
+                    className={`flex items-center justify-between p-2.5 ${theme === 'dark' ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200/80'} rounded-xl border`}
                   >
                     <div className="flex items-center space-x-2.5">
-                      <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center">
+                      <span className={`w-6 h-6 rounded-full ${theme === 'dark' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-emerald-100 text-emerald-800'} font-bold text-xs flex items-center justify-center`}>
                         {idx + 1}
                       </span>
                       <div>
-                        <h5 className="text-xs font-bold text-slate-900">
+                        <h5 className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
                           {m.name} <span className="font-normal text-slate-500 font-mono">{m.binBinti}</span>
                         </h5>
-                        <p className="text-[10px] text-slate-500">
+                        <p className={`text-[10px] ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
                           {m.kinshipTitle} • {getYearRangeDisplay(m)} • {m.origin}
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] text-emerald-700 font-bold">
+                    <span className={`text-[10px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'} font-bold`}>
                       Al-Fatihah 🤲
                     </span>
                   </div>
@@ -1648,14 +1665,14 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Offline-first Backup & Restore JSON */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 space-y-3">
-              <div className="flex items-center space-x-2 border-b border-emerald-50 pb-2">
-                <Archive className="w-4 h-4 text-emerald-700" />
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl p-4 shadow-sm border space-y-3`}>
+              <div className={`flex items-center space-x-2 border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-50'} pb-2`}>
+                <Archive className={`w-4 h-4 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                <h4 className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} uppercase tracking-wider`}>
                   Cadangan &amp; Pemulihan Data (Offline-First)
                 </h4>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'} leading-relaxed`}>
                 Seluruh data tersimpan secara lokal dan aman di perangkat Anda. Simpan file cadangan .JSON untuk diarsipkan atau dibagikan ke saudara keluarga besar.
               </p>
 
@@ -1668,7 +1685,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                   <span>Ekspor Backup JSON</span>
                 </button>
 
-                <label className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs transition active:scale-98 text-center">
+                <label className={`${theme === 'dark' ? 'bg-slate-950 hover:bg-slate-800 text-emerald-300 border-slate-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'} border font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs transition active:scale-98 text-center`}>
                   <Upload className="w-4 h-4" />
                   <span>Impor Backup JSON</span>
                   <input
@@ -1682,19 +1699,19 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Bagikan Undangan Keluarga Besar */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100 space-y-2.5">
+            <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl p-4 shadow-sm border space-y-2.5`}>
               <div className="flex items-center space-x-2">
-                <Share2 className="w-4 h-4 text-emerald-700" />
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                <Share2 className={`w-4 h-4 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                <h4 className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'} uppercase tracking-wider`}>
                   Undang Kerabat Keluarga Besar
                 </h4>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className={`text-xs ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'} leading-relaxed`}>
                 Ajak paman, bibi, sepupu, dan kerabat trah Kuningan &amp; Bogor untuk bersama-sama melengkapi pohon silsilah keluarga kita.
               </p>
               <button
                 onClick={() => setShowShareModal(true)}
-                className="w-full bg-[#f0fdf4] hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition active:scale-98"
+                className={`w-full ${theme === 'dark' ? 'bg-slate-950 hover:bg-slate-800 text-emerald-300 border-slate-700' : 'bg-[#f0fdf4] hover:bg-emerald-50 text-emerald-800 border-emerald-200'} border font-bold text-xs py-2.5 rounded-xl flex items-center justify-center space-x-1.5 transition active:scale-98`}
               >
                 <Share2 className="w-4 h-4" />
                 <span>Bagikan Tautan Undangan Silaturahmi</span>
@@ -1706,10 +1723,10 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
         </>
       )}
 
-      {/* BOTTOM NAVIGATION BAR KHUSUS LELUHURQU (WARGAQU EMERALD & ORBITQU DARK PALETTE) */}
+      {/* BOTTOM NAVIGATION BAR KHUSUS LELUHURQU (WARGAQU EMERALD & ORBITQU DARK/LIGHT PALETTE) */}
       <nav className={`absolute bottom-0 left-0 right-0 ${
-        activeTab === 'orbitqu'
-          ? 'bg-slate-900/95 border-slate-800 text-slate-300'
+        theme === 'dark'
+          ? 'bg-slate-950/95 border-slate-800/80 text-slate-300'
           : 'bg-white/95 border-emerald-100 text-slate-800'
       } backdrop-blur-md border-t px-2 py-2 flex justify-around items-center z-40 shadow-lg`}>
         {/* Tab 1: Silsilah */}
@@ -1717,13 +1734,11 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           onClick={() => setActiveTab('silsilah')}
           className={`flex flex-col items-center gap-1 transition active:scale-95 ${
             activeTab === 'silsilah'
-              ? 'text-emerald-700 font-bold'
-              : activeTab === 'orbitqu'
-              ? 'text-slate-400 hover:text-slate-200'
-              : 'text-slate-400 hover:text-emerald-700 font-medium'
+              ? (theme === 'dark' ? 'text-emerald-400 font-bold' : 'text-emerald-700 font-bold')
+              : (theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-emerald-700 font-medium')
           }`}
         >
-          <GitFork className={`w-5 h-5 rotate-180 ${activeTab === 'silsilah' ? 'text-emerald-700' : 'text-slate-400'}`} />
+          <GitFork className={`w-5 h-5 rotate-180 ${activeTab === 'silsilah' ? (theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700') : 'text-slate-400'}`} />
           <span className="text-[10px]">Silsilah</span>
         </button>
 
@@ -1733,7 +1748,7 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           className={`flex flex-col items-center gap-1 transition active:scale-95 relative ${
             activeTab === 'orbitqu'
               ? 'text-emerald-400 font-bold'
-              : 'text-slate-400 hover:text-emerald-700 font-medium'
+              : (theme === 'dark' ? 'text-slate-400 hover:text-slate-200 font-medium' : 'text-slate-400 hover:text-emerald-700 font-medium')
           }`}
         >
           <div className="relative">
@@ -1748,13 +1763,11 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           onClick={() => setActiveTab('medsos')}
           className={`flex flex-col items-center gap-1 transition active:scale-95 ${
             activeTab === 'medsos'
-              ? 'text-emerald-700 font-bold'
-              : activeTab === 'orbitqu'
-              ? 'text-slate-400 hover:text-slate-200'
-              : 'text-slate-400 hover:text-emerald-700 font-medium'
+              ? (theme === 'dark' ? 'text-emerald-400 font-bold' : 'text-emerald-700 font-bold')
+              : (theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-emerald-700 font-medium')
           }`}
         >
-          <Users className={`w-5 h-5 ${activeTab === 'medsos' ? 'text-emerald-700' : 'text-slate-400'}`} />
+          <Users className={`w-5 h-5 ${activeTab === 'medsos' ? (theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700') : 'text-slate-400'}`} />
           <span className="text-[10px]">Medsos Trah</span>
         </button>
 
@@ -1763,14 +1776,12 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           onClick={() => setActiveTab('doa')}
           className={`flex flex-col items-center gap-1 transition active:scale-95 relative ${
             activeTab === 'doa'
-              ? 'text-emerald-700 font-bold'
-              : activeTab === 'orbitqu'
-              ? 'text-slate-400 hover:text-slate-200'
-              : 'text-slate-400 hover:text-emerald-700 font-medium'
+              ? (theme === 'dark' ? 'text-emerald-400 font-bold' : 'text-emerald-700 font-bold')
+              : (theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-emerald-700 font-medium')
           }`}
         >
           <div className="relative">
-            <Moon className={`w-5 h-5 ${activeTab === 'doa' ? 'text-emerald-700' : 'text-slate-400'}`} />
+            <Moon className={`w-5 h-5 ${activeTab === 'doa' ? (theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700') : 'text-slate-400'}`} />
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping"></span>
           </div>
           <span className="text-[10px]">Doa Leluhur</span>
@@ -1781,24 +1792,22 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           onClick={() => setActiveTab('arsip')}
           className={`flex flex-col items-center gap-1 transition active:scale-95 ${
             activeTab === 'arsip'
-              ? 'text-emerald-700 font-bold'
-              : activeTab === 'orbitqu'
-              ? 'text-slate-400 hover:text-slate-200'
-              : 'text-slate-400 hover:text-emerald-700 font-medium'
+              ? (theme === 'dark' ? 'text-emerald-400 font-bold' : 'text-emerald-700 font-bold')
+              : (theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-emerald-700 font-medium')
           }`}
         >
-          <Archive className={`w-5 h-5 ${activeTab === 'arsip' ? 'text-emerald-700' : 'text-slate-400'}`} />
+          <Archive className={`w-5 h-5 ${activeTab === 'arsip' ? (theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700') : 'text-slate-400'}`} />
           <span className="text-[10px]">Arsip &amp; Buku</span>
         </button>
       </nav>
 
       {/* MODAL: DETAIL ANGGOTA KELUARGA (INSPECTOR) */}
       {selectedMember && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-4 space-y-3.5 shadow-2xl relative border border-emerald-100">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-emerald-100 text-slate-900'} rounded-2xl max-w-sm w-full p-4 space-y-3.5 shadow-2xl relative border`}>
             <button
               onClick={() => setSelectedMember(null)}
-              className="absolute top-3.5 right-3.5 p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              className={`absolute top-3.5 right-3.5 p-1 ${theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-700'} rounded-lg`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -1808,17 +1817,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 {selectedMember.name.slice(0, 2).toUpperCase()}
               </div>
               <div>
-                <h3 className="font-bold text-base text-slate-900 leading-tight">
+                <h3 className={`font-bold text-base ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'} leading-tight`}>
                   {selectedMember.name}
                 </h3>
-                <p className="text-xs text-slate-500 font-mono">
+                <p className="text-xs text-slate-400 font-mono">
                   {selectedMember.binBinti || '-'}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.2 rounded-full">
+                  <span className={`text-[10px] ${theme === 'dark' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-emerald-100 text-emerald-800'} font-bold px-2 py-0.2 rounded-full`}>
                     {selectedMember.kinshipTitle || selectedMember.role}
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full ${selectedMember.status === 'Almarhum' ? 'bg-slate-200 text-slate-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full ${selectedMember.status === 'Almarhum' ? (theme === 'dark' ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700') : (theme === 'dark' ? 'bg-emerald-950/80 text-emerald-400' : 'bg-emerald-50 text-emerald-700')}`}>
                     {selectedMember.status}
                   </span>
                 </div>
@@ -1826,18 +1835,18 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             </div>
 
             {/* Info Grid (Privacy First, No NIK) */}
-            <div className="bg-[#f0fdf4] border border-emerald-100 rounded-xl p-3 space-y-2 text-xs">
-              <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
-                <span className="text-slate-500">Rentang Tahun:</span>
-                <span className="font-bold font-mono text-slate-800">{getYearRangeDisplay(selectedMember)}</span>
+            <div className={`${theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-[#f0fdf4] border-emerald-100'} border rounded-xl p-3 space-y-2 text-xs`}>
+              <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-100/70'} pb-1.5`}>
+                <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Rentang Tahun:</span>
+                <span className={`font-bold font-mono ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>{getYearRangeDisplay(selectedMember)}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
-                <span className="text-slate-500">Asal Daerah:</span>
-                <span className="font-bold text-slate-800">{selectedMember.origin || '-'}</span>
+              <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-100/70'} pb-1.5`}>
+                <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Asal Daerah:</span>
+                <span className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>{selectedMember.origin || '-'}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
-                <span className="text-slate-500">Jalur Nasab:</span>
-                <span className="font-bold text-emerald-800">
+              <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-100/70'} pb-1.5`}>
+                <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Jalur Nasab:</span>
+                <span className={`font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-800'}`}>
                   {selectedMember.trah === 'ayah' ? 'Trah Ayah User' :
                    selectedMember.trah === 'ibu' ? 'Trah Ibu User' :
                    selectedMember.trah === 'ayah_pasangan' ? 'Trah Ayah Pasangan' :
@@ -1845,59 +1854,94 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 </span>
               </div>
               {selectedMember.parentName && (
-                <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
-                  <span className="text-slate-500">Ayah / Induk Orbit 2:</span>
-                  <span className="font-bold text-slate-800">{selectedMember.parentName}</span>
+                <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-100/70'} pb-1.5`}>
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Ayah / Induk Orbit 2:</span>
+                  <span className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>{selectedMember.parentName}</span>
                 </div>
               )}
               {selectedMember.kakekName && (
-                <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
-                  <span className="text-slate-500">Kakek / Induk Orbit 1:</span>
-                  <span className="font-bold text-slate-800">{selectedMember.kakekName}</span>
+                <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-100/70'} pb-1.5`}>
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Kakek / Induk Orbit 1:</span>
+                  <span className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>{selectedMember.kakekName}</span>
                 </div>
               )}
               {selectedMember.uyutName && (
-                <div className="flex justify-between items-center border-b border-emerald-100/70 pb-1.5">
-                  <span className="text-slate-500">Uyut / Pusat Kuadran:</span>
-                  <span className="font-bold text-slate-800">{selectedMember.uyutName}</span>
+                <div className={`flex justify-between items-center border-b ${theme === 'dark' ? 'border-slate-800' : 'border-emerald-100/70'} pb-1.5`}>
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}>Uyut / Pusat Kuadran:</span>
+                  <span className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>{selectedMember.uyutName}</span>
                 </div>
               )}
               {selectedMember.notes && (
                 <div className="pt-1">
-                  <span className="text-[10px] text-slate-500 block">Catatan Silsilah:</span>
-                  <p className="text-[11px] text-slate-700 italic mt-0.5">{selectedMember.notes}</p>
+                  <span className="text-[10px] text-slate-400 block">Catatan Silsilah:</span>
+                  <p className={`text-[11px] ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'} italic mt-0.5`}>{selectedMember.notes}</p>
                 </div>
               )}
             </div>
 
             {/* Action buttons */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pt-1">
               <button
                 onClick={() => {
+                  handleOpenInOrbit(selectedMember.id);
                   setSelectedMember(null);
-                  setActiveTab('orbitqu');
-                  showNotification(`Membuka visualisasi orbit untuk ${selectedMember.name}`);
                 }}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-emerald-400 font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 border border-emerald-500/40 shadow-xs transition"
+                className="w-full bg-slate-950 hover:bg-slate-800 text-[#5eead4] font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 border border-emerald-500/40 shadow-xs transition active:scale-98"
               >
-                <span>🪐 Buka di OrbitQu (Tata Surya)</span>
+                <Compass className="w-4 h-4 text-[#5eead4] animate-pulse" />
+                <span>🪐 Sorot Posisi di OrbitQu</span>
               </button>
 
-              <div className="flex gap-2">
-                {selectedMember.status === 'Almarhum' && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    handleOpenEditMember(selectedMember);
+                  }}
+                  className={`${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border-slate-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'} font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 border transition active:scale-98`}
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit Data</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleOpenAddChild(selectedMember);
+                  }}
+                  className={`${theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border-slate-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'} font-bold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 border transition active:scale-98`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Anak</span>
+                </button>
+              </div>
+
+              {selectedMember.status === 'Almarhum' && (
+                <button
+                  onClick={() => {
+                    showNotification(`Doa Al-Fatihah dikirimkan untuk ${selectedMember.name} 🤲`);
+                    setSelectedMember(null);
+                  }}
+                  className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2 rounded-xl shadow-xs transition flex items-center justify-center gap-1.5"
+                >
+                  <span>🤲 Kirim Doa Al-Fatihah</span>
+                </button>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                {!selectedMember.isUser && (
                   <button
                     onClick={() => {
-                      showNotification(`Doa Al-Fatihah dikirimkan untuk ${selectedMember.name} 🤲`);
-                      setSelectedMember(null);
+                      if (window.confirm(`Hapus ${selectedMember.name} dari silsilah dan OrbitQu?`)) {
+                        handleDeleteMember(selectedMember.id);
+                      }
                     }}
-                    className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs"
+                    className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl flex items-center justify-center transition border border-rose-200"
+                    title="Hapus Anggota Ini"
                   >
-                    Kirim Doa Al-Fatihah 🤲
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
                 <button
                   onClick={() => setSelectedMember(null)}
-                  className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-xl transition"
                 >
                   Tutup
                 </button>
@@ -1910,10 +1954,10 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
       {/* MODAL: SCAN KK (OCR PRIVACY-FIRST SIMULATOR) */}
       {showScanKKModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-4 space-y-4 shadow-2xl relative border border-emerald-100 text-slate-800">
+          <div className={`${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl max-w-sm w-full p-4 space-y-4 shadow-2xl relative border`}>
             <button
               onClick={() => setShowScanKKModal(false)}
-              className="absolute top-3.5 right-3.5 p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              className={`absolute top-3.5 right-3.5 p-1 ${theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-700'} rounded-lg`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -1923,8 +1967,8 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 <Camera className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-900">Scan Kartu Keluarga</h3>
-                <p className="text-[10px] text-emerald-700 font-bold">Privacy-First • NIK Tidak Disimpan</p>
+                <h3 className={`font-bold text-sm ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>Scan Kartu Keluarga</h3>
+                <p className={`text-[10px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'} font-bold`}>Privacy-First • NIK Tidak Disimpan</p>
               </div>
             </div>
 
@@ -1989,12 +2033,12 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-200">
           <form
             onSubmit={handleAddMemberSubmit}
-            className="bg-white rounded-2xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative border border-emerald-100 text-slate-800 max-h-[92vh] overflow-y-auto no-scrollbar"
+            className={`${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative border max-h-[92vh] overflow-y-auto no-scrollbar`}
           >
             <button
               type="button"
               onClick={() => setShowAddMemberModal(false)}
-              className="absolute top-3.5 right-3.5 p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              className={`absolute top-3.5 right-3.5 p-1 ${theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-700'} rounded-lg`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -2004,8 +2048,8 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
                 <Plus className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-slate-900">Tambah Anggota Silsilah</h3>
-                <p className="text-[10px] text-emerald-700 font-bold">Privacy-First (Tanpa NIK)</p>
+                <h3 className={`font-bold text-sm ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>Tambah Anggota Silsilah</h3>
+                <p className={`text-[10px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'} font-bold`}>Privacy-First (Tanpa NIK)</p>
               </div>
             </div>
 
@@ -2291,6 +2335,219 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAddMemberModal(false)}
+                className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+              >
+                Batal
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL: EDIT ANGGOTA SILSILAH / ORBITQU */}
+      {showEditMemberModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-200">
+          <form
+            onSubmit={handleEditMemberSubmit}
+            className={`${theme === 'dark' ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-emerald-100 text-slate-800'} rounded-2xl max-w-sm w-full p-4 space-y-3 shadow-2xl relative border max-h-[92vh] overflow-y-auto no-scrollbar`}
+          >
+            <button
+              type="button"
+              onClick={() => setShowEditMemberModal(false)}
+              className={`absolute top-3.5 right-3.5 p-1 ${theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-slate-700'} rounded-lg`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-emerald-700 text-white rounded-xl flex items-center justify-center">
+                <Edit3 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className={`font-bold text-sm ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>Edit Anggota Silsilah &amp; OrbitQu</h3>
+                <p className={`text-[10px] ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'} font-bold`}>Sinkronisasi Langsung ke Garis Orbit</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                  Nama Lengkap *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:border-emerald-600 font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Gelar / Panggilan
+                  </label>
+                  <input
+                    type="text"
+                    value={editOrder}
+                    onChange={e => setEditOrder(e.target.value)}
+                    placeholder="Contoh: Anak ke-1 / Aki"
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Peran / Hubungan
+                  </label>
+                  <input
+                    type="text"
+                    value={editRole}
+                    onChange={e => setEditRole(e.target.value)}
+                    placeholder="Contoh: Ayah / Anak"
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Kuadran Trah
+                  </label>
+                  <select
+                    value={editQuadrant}
+                    onChange={e => setEditQuadrant(e.target.value as any)}
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600 font-bold"
+                  >
+                    <option value="Q1">Q1: Trah Ayah User (Kuningan)</option>
+                    <option value="Q2">Q2: Trah Ibu User (Bogor)</option>
+                    <option value="Q3">Q3: Trah Ayah Pasangan</option>
+                    <option value="Q4">Q4: Trah Ibu Pasangan</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Jenis Kelamin
+                  </label>
+                  <select
+                    value={editGender}
+                    onChange={e => setEditGender(e.target.value as any)}
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600 font-bold"
+                  >
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                  Nama Pasangan
+                </label>
+                <input
+                  type="text"
+                  value={editSpouseName}
+                  onChange={e => setEditSpouseName(e.target.value)}
+                  placeholder="Nama istri / suami"
+                  className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Th. Lahir
+                  </label>
+                  <input
+                    type="text"
+                    value={editBirthYear}
+                    onChange={e => setEditBirthYear(e.target.value)}
+                    placeholder="1990"
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={e => setEditStatus(e.target.value as any)}
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600 font-bold"
+                  >
+                    <option value="Hidup">Hidup</option>
+                    <option value="Almarhum">Almarhum</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                    Th. Wafat
+                  </label>
+                  <input
+                    type="text"
+                    value={editDeathYear}
+                    onChange={e => setEditDeathYear(e.target.value)}
+                    placeholder="2020"
+                    disabled={editStatus === 'Hidup'}
+                    className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600 font-mono disabled:opacity-40"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                  Asal Daerah / Kampung
+                </label>
+                <input
+                  type="text"
+                  value={editOrigin}
+                  onChange={e => setEditOrigin(e.target.value)}
+                  placeholder="Contoh: Cilimus, Kuningan"
+                  className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                  Induk Garis Silsilah / Orang Tua
+                </label>
+                <select
+                  value={editParentId}
+                  onChange={e => setEditParentId(e.target.value)}
+                  className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
+                >
+                  <option value="">-- Tanpa Induk (Pusat Uyut / Akar) --</option>
+                  {familyTree.nodes.filter(n => n.id !== editNodeId).map(n => (
+                    <option key={n.id} value={n.id}>{n.name} ({n.order || n.role || `Gen ${n.gen}`})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">
+                  Catatan Silsilah
+                </label>
+                <input
+                  type="text"
+                  value={editNotes}
+                  onChange={e => setEditNotes(e.target.value)}
+                  placeholder="Keterangan riwayat atau nasab"
+                  className="w-full bg-[#f0fdf4] border border-emerald-200 rounded-xl p-2 text-slate-900 focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs transition"
+              >
+                Simpan Perubahan
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEditMemberModal(false)}
                 className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
               >
                 Batal

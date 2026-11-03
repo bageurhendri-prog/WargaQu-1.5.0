@@ -29,7 +29,9 @@ import {
   Hexagon,
   Square,
   Circle,
-  Upload
+  Upload,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export interface OrbitNode {
@@ -96,7 +98,7 @@ export interface LedgerLog {
 // User No. 3 punya 3 anak (Anak 1-3 di Orbit 4)
 // Pasangan User (Siti Nurhaliza) tampil nempel/berdampingan beda warna
 // ----------------------------------------------------------------------------
-const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
+export const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
   quadrants: {
     Q1: { name: "Trah Ayah User (Kiri-Atas)", color: "#38bdf8", center: { x: -620, y: -540 } },
     Q2: { name: "Trah Ibu User (Kanan-Atas)", color: "#34d399", center: { x: 620, y: -540 } },
@@ -115,6 +117,7 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Pusat Kuadran (1)",
       quadrant: "Q1",
       claimed: true,
+      gender: "L",
       role: "Uyut Utama (Pusat Bintang)",
       birthYear: "1910",
       deathYear: "1982",
@@ -130,6 +133,7 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Anak ke-1",
       quadrant: "Q1",
       claimed: true,
+      gender: "L",
       role: "Kakek Sulung",
       parentId: "uyut_1",
       birthYear: "1935",
@@ -144,6 +148,7 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Anak ke-2",
       quadrant: "Q1",
       claimed: true,
+      gender: "L",
       role: "Kakek Utama (Poros Ayah)",
       parentId: "uyut_1",
       birthYear: "1938",
@@ -158,6 +163,7 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Anak ke-3",
       quadrant: "Q1",
       claimed: true,
+      gender: "L",
       role: "Kakek Bungsu",
       parentId: "uyut_1",
       birthYear: "1942",
@@ -167,20 +173,20 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
     },
 
     // 2. Orbit 2: 10 Anak dari Kakek No. 2 (Ayah, Paman, Bibi 1 - 10)
-    { id: "ayah_1", name: "Uwa No. 1", gen: -1, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Uwa Pertama", parentId: "kakek_2", birthYear: "1963", status: "Hidup", origin: "Bandung" },
-    { id: "ayah_2", name: "Ayah No. 2 (Karta)", gen: -1, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Ayah Kandung User", parentId: "kakek_2", birthYear: "1965", status: "Hidup", origin: "Bandung" },
-    { id: "ayah_3", name: "Paman No. 3", gen: -1, order: "Anak ke-3", quadrant: "Q1", claimed: true, role: "Paman", parentId: "kakek_2", birthYear: "1968", status: "Hidup", origin: "Jakarta" },
-    { id: "ayah_4", name: "Bibi No. 4", gen: -1, order: "Anak ke-4", quadrant: "Q1", claimed: true, role: "Bibi", parentId: "kakek_2", birthYear: "1970", status: "Hidup", origin: "Bandung" },
-    { id: "ayah_5", name: "Paman No. 5", gen: -1, order: "Anak ke-5", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2", birthYear: "1973", status: "Hidup", origin: "Bogor" },
-    { id: "ayah_6", name: "Bibi No. 6", gen: -1, order: "Anak ke-6", quadrant: "Q1", claimed: false, role: "Bibi", parentId: "kakek_2", birthYear: "1975", status: "Hidup", origin: "Bekasi" },
-    { id: "ayah_7", name: "Paman No. 7", gen: -1, order: "Anak ke-7", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2", birthYear: "1978", status: "Hidup", origin: "Bandung" },
-    { id: "ayah_8", name: "Bibi No. 8", gen: -1, order: "Anak ke-8", quadrant: "Q1", claimed: false, role: "Bibi", parentId: "kakek_2", birthYear: "1980", status: "Hidup", origin: "Tangerang" },
-    { id: "ayah_9", name: "Paman No. 9", gen: -1, order: "Anak ke-9", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2", birthYear: "1983", status: "Hidup", origin: "Depok" },
-    { id: "ayah_10", name: "Bibi No. 10", gen: -1, order: "Anak ke-10", quadrant: "Q1", claimed: false, role: "Bibi Bungsu", parentId: "kakek_2", birthYear: "1986", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_1", name: "Uwa No. 1", gen: -1, order: "Anak ke-1", quadrant: "Q1", claimed: true, gender: "L", role: "Uwa Pertama", parentId: "kakek_2", birthYear: "1963", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_2", name: "Ayah No. 2 (Karta)", gen: -1, order: "Anak ke-2", quadrant: "Q1", claimed: true, gender: "L", role: "Ayah Kandung User", parentId: "kakek_2", birthYear: "1965", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_3", name: "Paman No. 3", gen: -1, order: "Anak ke-3", quadrant: "Q1", claimed: true, gender: "L", role: "Paman", parentId: "kakek_2", birthYear: "1968", status: "Hidup", origin: "Jakarta" },
+    { id: "ayah_4", name: "Bibi No. 4", gen: -1, order: "Anak ke-4", quadrant: "Q1", claimed: true, gender: "P", role: "Bibi", parentId: "kakek_2", birthYear: "1970", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_5", name: "Paman No. 5", gen: -1, order: "Anak ke-5", quadrant: "Q1", claimed: false, gender: "L", role: "Paman", parentId: "kakek_2", birthYear: "1973", status: "Hidup", origin: "Bogor" },
+    { id: "ayah_6", name: "Bibi No. 6", gen: -1, order: "Anak ke-6", quadrant: "Q1", claimed: false, gender: "P", role: "Bibi", parentId: "kakek_2", birthYear: "1975", status: "Hidup", origin: "Bekasi" },
+    { id: "ayah_7", name: "Paman No. 7", gen: -1, order: "Anak ke-7", quadrant: "Q1", claimed: false, gender: "L", role: "Paman", parentId: "kakek_2", birthYear: "1978", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_8", name: "Bibi No. 8", gen: -1, order: "Anak ke-8", quadrant: "Q1", claimed: false, gender: "P", role: "Bibi", parentId: "kakek_2", birthYear: "1980", status: "Hidup", origin: "Tangerang" },
+    { id: "ayah_9", name: "Paman No. 9", gen: -1, order: "Anak ke-9", quadrant: "Q1", claimed: false, gender: "L", role: "Paman", parentId: "kakek_2", birthYear: "1983", status: "Hidup", origin: "Depok" },
+    { id: "ayah_10", name: "Bibi No. 10", gen: -1, order: "Anak ke-10", quadrant: "Q1", claimed: false, gender: "P", role: "Bibi Bungsu", parentId: "kakek_2", birthYear: "1986", status: "Hidup", origin: "Bandung" },
 
     // 3. Orbit 3: 6 Anak dari Ayah No. 2 (User & Saudara 1 - 6, User adalah No. 3)
-    { id: "user_sib_1", name: "Kakak No. 1", gen: 0, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Kakak Sulung", relationType: "kakak", parentId: "ayah_2", birthYear: "1988", status: "Hidup", origin: "Bandung" },
-    { id: "user_sib_2", name: "Kakak No. 2", gen: 0, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Kakak Kedua", relationType: "kakak", parentId: "ayah_2", birthYear: "1990", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_1", name: "Kakak No. 1", gen: 0, order: "Anak ke-1", quadrant: "Q1", claimed: true, gender: "L", role: "Kakak Sulung", relationType: "kakak", parentId: "ayah_2", birthYear: "1988", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_2", name: "Kakak No. 2", gen: 0, order: "Anak ke-2", quadrant: "Q1", claimed: true, gender: "P", role: "Kakak Kedua", relationType: "kakak", parentId: "ayah_2", birthYear: "1990", status: "Hidup", origin: "Bandung" },
     {
       id: "user_node",
       name: "Hendriana (User No. 3)",
@@ -188,6 +194,7 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Anak ke-3",
       quadrant: "Q1",
       claimed: true,
+      gender: "L",
       role: "User (Poros Utama)",
       isUser: true,
       relationType: "user",
@@ -198,38 +205,38 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       status: "Hidup",
       origin: "Bandung"
     },
-    { id: "user_sib_4", name: "Adik No. 4", gen: 0, order: "Anak ke-4", quadrant: "Q1", claimed: true, role: "Adik Pertama", relationType: "adik", parentId: "ayah_2", birthYear: "1995", status: "Hidup", origin: "Bandung" },
-    { id: "user_sib_5", name: "Adik No. 5", gen: 0, order: "Anak ke-5", quadrant: "Q1", claimed: false, role: "Adik Kedua", relationType: "adik", parentId: "ayah_2", birthYear: "1998", status: "Hidup", origin: "Bandung" },
-    { id: "user_sib_6", name: "Adik No. 6", gen: 0, order: "Anak ke-6", quadrant: "Q1", claimed: false, role: "Adik Bungsu", relationType: "adik", parentId: "ayah_2", birthYear: "2001", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_4", name: "Adik No. 4", gen: 0, order: "Anak ke-4", quadrant: "Q1", claimed: true, gender: "L", role: "Adik Pertama", relationType: "adik", parentId: "ayah_2", birthYear: "1995", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_5", name: "Adik No. 5", gen: 0, order: "Anak ke-5", quadrant: "Q1", claimed: false, gender: "P", role: "Adik Kedua", relationType: "adik", parentId: "ayah_2", birthYear: "1998", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_6", name: "Adik No. 6", gen: 0, order: "Anak ke-6", quadrant: "Q1", claimed: false, gender: "L", role: "Adik Bungsu", relationType: "adik", parentId: "ayah_2", birthYear: "2001", status: "Hidup", origin: "Bandung" },
 
     // 4. Orbit 4: 3 Anak dari User No. 3
-    { id: "anak_1", name: "Anak No. 1 (Sulung)", gen: 1, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Anak Pertama", parentId: "user_node", birthYear: "2018", status: "Hidup", origin: "Bandung" },
-    { id: "anak_2", name: "Anak No. 2 (Tengah)", gen: 1, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Anak Kedua", parentId: "user_node", birthYear: "2021", status: "Hidup", origin: "Bandung" },
-    { id: "anak_3", name: "Anak No. 3 (Bungsu)", gen: 1, order: "Anak ke-3", quadrant: "Q1", claimed: true, role: "Anak Bungsu", parentId: "user_node", birthYear: "2024", status: "Hidup", origin: "Bandung" },
+    { id: "anak_1", name: "Anak No. 1 (Sulung)", gen: 1, order: "Anak ke-1", quadrant: "Q1", claimed: true, gender: "L", role: "Anak Pertama", parentId: "user_node", birthYear: "2018", status: "Hidup", origin: "Bandung" },
+    { id: "anak_2", name: "Anak No. 2 (Tengah)", gen: 1, order: "Anak ke-2", quadrant: "Q1", claimed: true, gender: "P", role: "Anak Kedua", parentId: "user_node", birthYear: "2021", status: "Hidup", origin: "Bandung" },
+    { id: "anak_3", name: "Anak No. 3 (Bungsu)", gen: 1, order: "Anak ke-3", quadrant: "Q1", claimed: true, gender: "L", role: "Anak Bungsu", parentId: "user_node", birthYear: "2024", status: "Hidup", origin: "Bandung" },
 
     // ==========================================
     // TRAH IBU USER (Q2)
     // ==========================================
-    { id: "q2_uyut", name: "Uyut Maternal", gen: -3, order: "Pusat Kuadran", quadrant: "Q2", claimed: true, role: "Uyut Jalur Ibu" },
-    { id: "q2_kakek", name: "Kakek Maternal", gen: -2, order: "Anak ke-1", quadrant: "Q2", claimed: true, role: "Kakek (Abah Ibu)", parentId: "q2_uyut" },
-    { id: "q2_ibu", name: "Ibu Kandung User", gen: -1, order: "Anak ke-1", quadrant: "Q2", claimed: true, role: "Ibu Kandung", parentId: "q2_kakek" },
-    { id: "q2_user", name: "Hendriana (Trah Ibu)", gen: 0, order: "Anak ke-1", quadrant: "Q2", claimed: true, role: "User (Trah Ibu)", parentId: "q2_ibu" },
+    { id: "q2_uyut", name: "Uyut Maternal", gen: -3, order: "Pusat Kuadran", quadrant: "Q2", claimed: true, gender: "L", role: "Uyut Jalur Ibu", birthYear: "1915", deathYear: "1988", status: "Almarhum", origin: "Bogor" },
+    { id: "q2_kakek", name: "Kakek Maternal", gen: -2, order: "Anak ke-1", quadrant: "Q2", claimed: true, gender: "L", role: "Kakek (Abah Ibu)", parentId: "q2_uyut", birthYear: "1940", deathYear: "2016", status: "Almarhum", origin: "Bogor" },
+    { id: "q2_ibu", name: "Ibu Kandung User", gen: -1, order: "Anak ke-1", quadrant: "Q2", claimed: true, gender: "P", role: "Ibu Kandung", parentId: "q2_kakek", birthYear: "1968", status: "Hidup", origin: "Bogor" },
+    { id: "q2_user", name: "Hendriana (Trah Ibu)", gen: 0, order: "Anak ke-1", quadrant: "Q2", claimed: true, gender: "L", role: "User (Trah Ibu)", parentId: "q2_ibu", birthYear: "1992", status: "Hidup", origin: "Bandung" },
 
     // ==========================================
     // TRAH AYAH PASANGAN (Q3)
     // ==========================================
-    { id: "q3_uyut", name: "Uyut Besan Ayah", gen: -3, order: "Pusat Kuadran", quadrant: "Q3", claimed: true, role: "Uyut Besan" },
-    { id: "q3_kakek", name: "Kakek Mertua", gen: -2, order: "Anak ke-1", quadrant: "Q3", claimed: false, role: "Kakek Mertua", parentId: "q3_uyut" },
-    { id: "q3_ayah_mertua", name: "Ayah Mertua (H. Suryana)", gen: -1, order: "Anak ke-1", quadrant: "Q3", claimed: true, role: "Ayah Pasangan", parentId: "q3_kakek" },
-    { id: "q3_pasangan", name: "Siti Nurhaliza (Trah Ayah)", gen: 0, order: "Anak ke-1", quadrant: "Q3", claimed: true, role: "Pasangan", parentId: "q3_ayah_mertua" },
+    { id: "q3_uyut", name: "Uyut Besan Ayah", gen: -3, order: "Pusat Kuadran", quadrant: "Q3", claimed: true, gender: "L", role: "Uyut Besan", birthYear: "1912", deathYear: "1985", status: "Almarhum", origin: "Bogor" },
+    { id: "q3_kakek", name: "Kakek Mertua", gen: -2, order: "Anak ke-1", quadrant: "Q3", claimed: false, gender: "L", role: "Kakek Mertua", parentId: "q3_uyut", birthYear: "1936", deathYear: "2010", status: "Almarhum", origin: "Bogor" },
+    { id: "q3_ayah_mertua", name: "Ayah Mertua (H. Suryana)", gen: -1, order: "Anak ke-1", quadrant: "Q3", claimed: true, gender: "L", role: "Ayah Pasangan", parentId: "q3_kakek", birthYear: "1962", status: "Hidup", origin: "Bogor" },
+    { id: "q3_pasangan", name: "Siti Nurhaliza (Trah Ayah)", gen: 0, order: "Anak ke-1", quadrant: "Q3", claimed: true, gender: "P", role: "Pasangan", parentId: "q3_ayah_mertua", birthYear: "1994", status: "Hidup", origin: "Bogor" },
 
     // ==========================================
     // TRAH IBU PASANGAN (Q4)
     // ==========================================
-    { id: "q4_uyut", name: "Uyut Besan Ibu", gen: -3, order: "Pusat Kuadran", quadrant: "Q4", claimed: true, role: "Uyut Besan" },
-    { id: "q4_kakek", name: "Nenek Mertua", gen: -2, order: "Anak ke-1", quadrant: "Q4", claimed: false, role: "Nenek Mertua", parentId: "q4_uyut" },
-    { id: "q4_ibu_mertua", name: "Ibu Mertua (Hj. Maryam)", gen: -1, order: "Anak ke-1", quadrant: "Q4", claimed: true, role: "Ibu Pasangan", parentId: "q4_kakek" },
-    { id: "q4_pasangan", name: "Siti Nurhaliza (Trah Ibu)", gen: 0, order: "Anak ke-1", quadrant: "Q4", claimed: true, role: "Pasangan", parentId: "q4_ibu_mertua" }
+    { id: "q4_uyut", name: "Uyut Besan Ibu", gen: -3, order: "Pusat Kuadran", quadrant: "Q4", claimed: true, gender: "P", role: "Uyut Besan", birthYear: "1916", deathYear: "1989", status: "Almarhum", origin: "Bogor" },
+    { id: "q4_kakek", name: "Nenek Mertua", gen: -2, order: "Anak ke-1", quadrant: "Q4", claimed: false, gender: "P", role: "Nenek Mertua", parentId: "q4_uyut", birthYear: "1939", deathYear: "2011", status: "Almarhum", origin: "Bogor" },
+    { id: "q4_ibu_mertua", name: "Ibu Mertua (Hj. Maryam)", gen: -1, order: "Anak ke-1", quadrant: "Q4", claimed: true, gender: "P", role: "Ibu Pasangan", parentId: "q4_kakek", birthYear: "1965", status: "Hidup", origin: "Bogor" },
+    { id: "q4_pasangan", name: "Siti Nurhaliza (Trah Ibu)", gen: 0, order: "Anak ke-1", quadrant: "Q4", claimed: true, gender: "P", role: "Pasangan", parentId: "q4_ibu_mertua", birthYear: "1994", status: "Hidup", origin: "Bogor" }
   ]
 };
 
@@ -238,18 +245,56 @@ const DEFAULT_LOGS: LedgerLog[] = [
   { id: "log-2", time: "16:20", action: "Pola Sebaran", text: "Pola Kipas Kosmik (Fan Outward) aktif: percabangan melebar ke angkasa luar tanpa menyebrang kuadran lain." }
 ];
 
-interface OrbitQuViewProps {
+export interface OrbitQuViewProps {
   onBackToLeluhurQu?: () => void;
   onOpenInSilsilah?: (memberName: string, memberId?: string) => void;
   showNotification?: (msg: string) => void;
+  familyTree?: OrbitTreeData;
+  onUpdateFamilyTree?: React.Dispatch<React.SetStateAction<OrbitTreeData>>;
+  initialSelectedNodeId?: string | null;
+  onClearInitialSelectedNodeId?: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
 }
 
 export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   onBackToLeluhurQu,
   onOpenInSilsilah,
-  showNotification
+  showNotification,
+  familyTree: propsFamilyTree,
+  onUpdateFamilyTree,
+  initialSelectedNodeId,
+  onClearInitialSelectedNodeId,
+  theme: propsTheme,
+  onToggleTheme
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Tema Dark (Cosmic Space) vs Light (Heritage Parchment)
+  const [internalTheme, setInternalTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('wargaqu_leluhur_theme');
+      return saved === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const currentTheme = propsTheme ?? internalTheme;
+  const isLight = currentTheme === 'light';
+
+  const toggleTheme = () => {
+    if (onToggleTheme) {
+      onToggleTheme();
+    } else {
+      const next = internalTheme === 'dark' ? 'light' : 'dark';
+      setInternalTheme(next);
+      try {
+        localStorage.setItem('wargaqu_leluhur_theme', next);
+      } catch {}
+      showNotification?.(next === 'dark' ? '🌙 Mode Gelap (Dark Space) Aktif' : '☀️ Mode Terang (Light Heritage) Aktif');
+    }
+  };
 
   // Mode Peran: Admin Trah vs User Warga
   const [isAdminMode, setIsAdminMode] = useState<boolean>(true);
@@ -283,8 +328,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   const [claimPhotoUrlInput, setClaimPhotoUrlInput] = useState('');
   const [claimFrameShapeInput, setClaimFrameShapeInput] = useState<'circle' | 'square' | 'hexagon'>('circle');
 
-  // Tree State (Persisted)
-  const [familyTree, setFamilyTree] = useState<OrbitTreeData>(() => {
+  // Tree State (Single Source of Truth shared with Silsilah Keluarga)
+  const [internalFamilyTree, setInternalFamilyTree] = useState<OrbitTreeData>(() => {
     try {
       const saved = localStorage.getItem('wargaqu_orbitqu_tree_v6');
       return saved ? JSON.parse(saved) : CLEAN_REAL_TREE_DATA;
@@ -292,6 +337,28 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       return CLEAN_REAL_TREE_DATA;
     }
   });
+
+  const familyTree = propsFamilyTree ?? internalFamilyTree;
+  const setFamilyTree = onUpdateFamilyTree ?? setInternalFamilyTree;
+
+  // Auto-focus on targeted node when redirected from Silsilah tab
+  useEffect(() => {
+    if (initialSelectedNodeId && familyTree) {
+      calculatePositions(familyTree);
+      const target = familyTree.nodes.find(n => n.id === initialSelectedNodeId);
+      if (target) {
+        setSelectedNode(target);
+        if (target._renderX !== undefined && target._renderY !== undefined) {
+          cameraRef.current.x = -target._renderX;
+          cameraRef.current.y = -target._renderY;
+          cameraRef.current.zoom = 0.95;
+          setZoomLevelDisplay(95);
+        }
+        renderCanvas();
+        onClearInitialSelectedNodeId?.();
+      }
+    }
+  }, [initialSelectedNodeId, familyTree]);
 
   const [logs, setLogs] = useState<LedgerLog[]>(() => {
     try {
@@ -718,9 +785,9 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     // Kumpulan ID node yang sedang disorot (jalur aktif rasi bintang)
     const activeLineageIds = getActiveLineageIds(selectedNode);
 
-    // Background Kosmos Tata Surya
+    // Background Kosmos Tata Surya vs Kertas Heritage
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#070b14";
+    ctx.fillStyle = isLight ? "#f8fafc" : "#070b14";
     ctx.fillRect(0, 0, width, height);
 
     ctx.save();
@@ -728,7 +795,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     ctx.scale(zoom, zoom);
 
     // Taburan rasi bintang latar belakang
-    ctx.fillStyle = "#1e293b33";
+    ctx.fillStyle = isLight ? "#94a3b833" : "#1e293b33";
     for (let gx = -1800; gx <= 1800; gx += 140) {
       for (let gy = -1600; gy <= 1600; gy += 140) {
         ctx.beginPath();
@@ -773,15 +840,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.arc(q.center.x, q.center.y, ring.r, 0, Math.PI * 2);
 
         if (ring.isPoros) {
-          ctx.strokeStyle = "#38bdf866";
+          ctx.strokeStyle = isLight ? "#0284c799" : "#38bdf866";
           ctx.lineWidth = 2.2;
           ctx.setLineDash([6, 5]);
         } else if (ring.isOuter) {
-          ctx.strokeStyle = q.color + "44";
+          ctx.strokeStyle = isLight ? q.color + "70" : q.color + "44";
           ctx.lineWidth = 1.8;
           ctx.setLineDash([4, 4]);
         } else {
-          ctx.strokeStyle = q.color + "25";
+          ctx.strokeStyle = isLight ? "#94a3b850" : q.color + "25";
           ctx.lineWidth = 1.2;
           ctx.setLineDash([5, 5]);
         }
@@ -789,7 +856,9 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.setLineDash([]);
 
         ctx.font = ring.isPoros ? "bold 10px sans-serif" : "9px sans-serif";
-        ctx.fillStyle = ring.isPoros ? "#38bdf8" : q.color + "99";
+        ctx.fillStyle = ring.isPoros
+          ? (isLight ? "#0369a1" : "#38bdf8")
+          : (isLight ? "#64748b" : q.color + "99");
         ctx.textAlign = "left";
         ctx.fillText(ring.label, q.center.x + ring.r + 6, q.center.y);
       });
@@ -798,13 +867,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const maxR = ringRadii[5] + 55;
       ctx.beginPath();
       ctx.arc(q.center.x, q.center.y, maxR, 0, Math.PI * 2);
-      ctx.strokeStyle = q.color + "35";
+      ctx.strokeStyle = isLight ? q.color + "45" : q.color + "35";
       ctx.lineWidth = 2;
       ctx.stroke();
 
       // Judul Kuadran
       ctx.font = "bold 15px sans-serif";
-      ctx.fillStyle = q.color;
+      ctx.fillStyle = isLight
+        ? (qKey === 'Q1' ? '#0369a1' : qKey === 'Q2' ? '#047857' : qKey === 'Q3' ? '#be123c' : '#7e22ce')
+        : q.color;
       ctx.textAlign = "center";
       ctx.fillText(q.name, q.center.x, q.center.y - maxR - 15);
     });
@@ -885,9 +956,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               ctx.stroke();
             } else {
               // Garis Rasi Bintang Reguler: Pendar kosmik lembut
-              ctx.shadowColor = q.color;
-              ctx.shadowBlur = child.claimed ? 6 : 2;
-              ctx.strokeStyle = child.claimed ? `${q.color}dd` : `${q.color}45`;
+              ctx.shadowColor = isLight ? "#94a3b8" : q.color;
+              ctx.shadowBlur = child.claimed ? (isLight ? 2 : 6) : 2;
+              ctx.strokeStyle = isLight
+                ? (child.claimed ? `${q.color}` : `${q.color}77`)
+                : (child.claimed ? `${q.color}dd` : `${q.color}45`);
               ctx.lineWidth = child.claimed ? 2.2 : 1.3;
               ctx.stroke();
             }
@@ -965,11 +1038,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 ctx.lineTo(next._renderX, next._renderY);
               }
 
-              ctx.strokeStyle = "#f59e0b"; // Golden amber
+              ctx.strokeStyle = isLight ? "#d97706" : "#f59e0b"; // Golden amber
               ctx.lineWidth = 2;
               ctx.setLineDash([4, 4]);
-              ctx.shadowColor = "#f59e0b";
-              ctx.shadowBlur = 5;
+              ctx.shadowColor = isLight ? "#d9770644" : "#f59e0b";
+              ctx.shadowBlur = isLight ? 2 : 5;
               ctx.stroke();
               ctx.setLineDash([]);
 
@@ -979,14 +1052,14 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
               ctx.beginPath();
               ctx.arc(midX, midY, 9, 0, Math.PI * 2);
-              ctx.fillStyle = "#451a03";
+              ctx.fillStyle = isLight ? "#fef3c7" : "#451a03";
               ctx.fill();
-              ctx.strokeStyle = "#fbbf24";
+              ctx.strokeStyle = isLight ? "#d97706" : "#fbbf24";
               ctx.lineWidth = 1.2;
               ctx.stroke();
 
               ctx.font = "bold 8px sans-serif";
-              ctx.fillStyle = "#fef08a";
+              ctx.fillStyle = isLight ? "#92400e" : "#fef08a";
               ctx.textAlign = "center";
               ctx.fillText(`${i + 1}➔${i + 2}`, midX, midY + 3);
 
@@ -1004,15 +1077,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     if (userNodes.length > 0) {
       ctx.beginPath();
       ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.fillStyle = "#38bdf833";
+      ctx.fillStyle = isLight ? "#e0f2fe" : "#38bdf833";
       ctx.fill();
-      ctx.strokeStyle = "#38bdf888";
+      ctx.strokeStyle = isLight ? "#0284c7" : "#38bdf888";
       ctx.lineWidth = 1.8;
       ctx.stroke();
 
       ctx.save();
       ctx.font = "bold 9px sans-serif";
-      ctx.fillStyle = "#38bdf8";
+      ctx.fillStyle = isLight ? "#0284c7" : "#38bdf8";
       ctx.textAlign = "center";
       ctx.fillText("POROS KELUARGA (GEN 0)", 0, -20);
       ctx.restore();
@@ -1022,7 +1095,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           ctx.beginPath();
           ctx.moveTo(0, 0);
           ctx.lineTo(un._renderX, un._renderY);
-          ctx.strokeStyle = "#38bdf844";
+          ctx.strokeStyle = isLight ? "#0284c766" : "#38bdf844";
           ctx.lineWidth = 1.4;
           ctx.setLineDash([4, 4]);
           ctx.stroke();
@@ -1082,28 +1155,28 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       else if (isCucu) radius = 16;
       else if (isCicit) radius = 15;
 
-      let nodeColor = "#1e293b";
-      let borderColor = "#334155";
+      let nodeColor = isLight ? "#f1f5f9" : "#1e293b";
+      let borderColor = isLight ? "#94a3b8" : "#334155";
 
       if (isUyut) {
-        nodeColor = "#ca8a04";
-        borderColor = "#fef08a";
+        nodeColor = isLight ? "#f59e0b" : "#ca8a04";
+        borderColor = isLight ? "#b45309" : "#fef08a";
       } else if (isUserEgo) {
         nodeColor = "#0284c7";
-        borderColor = "#38bdf8";
+        borderColor = isLight ? "#0369a1" : "#38bdf8";
       } else if (isUserSaudara) {
-        nodeColor = node.claimed ? "#0d9488" : "#1e293b";
-        borderColor = node.claimed ? "#2dd4bf" : "#64748b";
+        nodeColor = node.claimed ? "#0d9488" : (isLight ? "#cbd5e1" : "#1e293b");
+        borderColor = node.claimed ? (isLight ? "#0f766e" : "#2dd4bf") : "#64748b";
       } else if (node.claimed) {
         nodeColor = "#059669";
-        borderColor = "#6ee7b7";
+        borderColor = isLight ? "#047857" : "#6ee7b7";
       }
 
       // Aura pendar bintang saat disorot / terpilih
       if (isHighlighted) {
         ctx.save();
         drawFrameShapePath(ctx, node._renderX, node._renderY, radius + 7, shape);
-        ctx.fillStyle = isUserEgo ? "#38bdf833" : "#fef08a33";
+        ctx.fillStyle = isUserEgo ? (isLight ? "#0284c733" : "#38bdf833") : (isLight ? "#f59e0b33" : "#fef08a33");
         ctx.fill();
         ctx.restore();
       }
@@ -1149,7 +1222,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         else if (node.claimed) icon = "✦";
 
         ctx.font = isUyut || isUserEgo ? "bold 12px sans-serif" : "11px sans-serif";
-        ctx.fillStyle = isUyut ? "#0f172a" : "#ffffff";
+        ctx.fillStyle = isUyut ? (isLight ? "#ffffff" : "#0f172a") : (isLight && !node.claimed && !isUserSaudara ? "#334155" : "#ffffff");
         ctx.textAlign = "center";
         ctx.fillText(icon, 0, 4);
         ctx.restore();
@@ -1169,7 +1242,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       lines.push({
         text: node.name,
         font: isUserEgo ? "bold 11px sans-serif" : "bold 10px sans-serif",
-        color: isUserEgo ? "#38bdf8" : "#f8fafc"
+        color: isUserEgo ? (isLight ? "#0284c7" : "#38bdf8") : (isLight ? "#0f172a" : "#f8fafc")
       });
 
       // Sub-label Urutan & Orbit
@@ -1185,7 +1258,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       lines.push({
         text: `${node.order} • ${orbitLabel}`,
         font: "9px sans-serif",
-        color: isUserEgo ? "#93c5fd" : (isUserSaudara ? "#2dd4bf" : "#94a3b8")
+        color: isUserEgo ? (isLight ? "#0369a1" : "#93c5fd") : (isUserSaudara ? (isLight ? "#0f766e" : "#2dd4bf") : (isLight ? "#475569" : "#94a3b8"))
       });
 
       // Baris Lahir - Wafat / Status
@@ -1202,7 +1275,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           lines.push({
             text: `⏳ ${lifeText}`,
             font: "9px sans-serif",
-            color: "#cbd5e1"
+            color: isLight ? "#334155" : "#cbd5e1"
           });
         }
       }
@@ -1212,16 +1285,16 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         lines.push({
           text: `📍 ${node.origin}`,
           font: "9px sans-serif",
-          color: "#67e8f9"
+          color: isLight ? "#0891b2" : "#67e8f9"
         });
       }
 
       if (node.customAngle !== undefined) {
-        lines.push({ text: "(Posisi Kustom)", font: "8px sans-serif", color: "#818cf8" });
+        lines.push({ text: "(Posisi Kustom)", font: "8px sans-serif", color: isLight ? "#4f46e5" : "#818cf8" });
       } else if (node.hideLine) {
-        lines.push({ text: "(Garis Terputus)", font: "8px sans-serif", color: "#f43f5e" });
+        lines.push({ text: "(Garis Terputus)", font: "8px sans-serif", color: isLight ? "#e11d48" : "#f43f5e" });
       } else if (!node.claimed && !isUyut) {
-        lines.push({ text: "Belum Diklaim", font: "8px sans-serif", color: "#f59e0b" });
+        lines.push({ text: "Belum Diklaim", font: "8px sans-serif", color: isLight ? "#d97706" : "#f59e0b" });
       }
 
       let maxLineWidth = 0;
@@ -1235,11 +1308,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const pillHeight = lines.length * 13 + 8;
       const pillY = radius + 4;
 
-      ctx.fillStyle = "#070b14f0";
+      ctx.fillStyle = isLight ? "#ffffffee" : "#070b14f0";
       ctx.beginPath();
       ctx.roundRect(-pillWidth / 2, pillY, pillWidth, pillHeight, 6);
       ctx.fill();
-      ctx.strokeStyle = isUserEgo ? "#38bdf888" : "#33415599";
+      ctx.strokeStyle = isUserEgo ? (isLight ? "#38bdf8" : "#38bdf888") : (isLight ? "#cbd5e1" : "#33415599");
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -1263,7 +1336,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.beginPath();
         ctx.moveTo(node._renderX, node._renderY);
         ctx.lineTo(node._spouseX, node._spouseY);
-        ctx.strokeStyle = "#f43f5ecc";
+        ctx.strokeStyle = isLight ? "#e11d48dd" : "#f43f5ecc";
         ctx.lineWidth = 2.8;
         ctx.stroke();
 
@@ -1278,9 +1351,9 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
         // Frame Pasangan (Warna Rose Pink Kontras & Beda Warna)
         drawFrameShapePath(ctx, node._spouseX, node._spouseY, spouseR, spouseShape);
-        ctx.fillStyle = "#be123c";
+        ctx.fillStyle = isLight ? "#e11d48" : "#be123c";
         ctx.fill();
-        ctx.strokeStyle = "#fda4af";
+        ctx.strokeStyle = isLight ? "#fb7185" : "#fda4af";
         ctx.lineWidth = 2.8;
         ctx.stroke();
 
@@ -1297,19 +1370,19 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         const spouseTextWidth = ctx.measureText(node.spouseName).width;
         const sPillWidth = Math.max(spouseTextWidth + 16, 75);
 
-        ctx.fillStyle = "#070b14ea";
+        ctx.fillStyle = isLight ? "#fff1f2fa" : "#070b14ea";
         ctx.beginPath();
         ctx.roundRect(-sPillWidth / 2, spouseR + 4, sPillWidth, 32, 6);
         ctx.fill();
-        ctx.strokeStyle = "#fda4af88";
+        ctx.strokeStyle = isLight ? "#f43f5e" : "#fda4af88";
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        ctx.fillStyle = "#fda4af";
+        ctx.fillStyle = isLight ? "#be123c" : "#fda4af";
         ctx.fillText(node.spouseName, 0, spouseR + 16);
 
         ctx.font = "9px sans-serif";
-        ctx.fillStyle = "#f43f5e";
+        ctx.fillStyle = isLight ? "#e11d48" : "#f43f5e";
         ctx.fillText("Pasangan (Berdampingan)", 0, spouseR + 29);
 
         ctx.restore();
@@ -1334,11 +1407,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines, currentTheme]);
 
   useEffect(() => {
     renderCanvas();
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines, currentTheme]);
 
   // -------------------------------------------------------------
   // MOUSE & TOUCH GESTURES (DRAGGING CAMERA ATAU DRAGGING BINTANG DI ORBIT)
@@ -1939,16 +2012,16 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     : [];
 
   return (
-    <div className="w-full h-full relative flex flex-col bg-[#070b14] text-slate-100 overflow-hidden font-sans select-none">
+    <div className={`w-full h-full relative flex flex-col ${isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#070b14] text-slate-100'} overflow-hidden font-sans select-none transition-colors duration-200`}>
       {/* ------------------------------------------------------------- */}
       {/* HEADER / TOP BAR                                              */}
       {/* ------------------------------------------------------------- */}
-      <header className="z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md gap-2 shrink-0">
+      <header className={`z-20 ${isLight ? 'bg-white/95 border-b border-slate-200 text-slate-800 shadow-xs' : 'bg-slate-900/95 border-b border-slate-800 text-slate-100'} backdrop-blur px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md gap-2 shrink-0`}>
         <div className="flex items-center gap-2 shrink-0">
           {onBackToLeluhurQu && (
             <button
               onClick={onBackToLeluhurQu}
-              className="p-1 -ml-1 text-slate-400 hover:text-emerald-400 rounded-lg transition active:scale-95"
+              className={`p-1 -ml-1 ${isLight ? 'text-slate-500 hover:text-emerald-700' : 'text-slate-400 hover:text-emerald-400'} rounded-lg transition active:scale-95`}
               title="Kembali ke Tab Silsilah"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -1959,34 +2032,53 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="font-bold text-sm leading-none text-white">Leluhur<span className="text-emerald-400">Qu</span></h1>
-              <span className="text-[9px] bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-semibold">
+              <h1 className={`font-bold text-sm leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Leluhur<span className="text-emerald-500">Qu</span></h1>
+              <span className={`text-[9px] ${isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30'} border px-1.5 py-0.5 rounded font-mono font-semibold`}>
                 OrbitQu
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 leading-tight">
+            <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'} leading-tight`}>
               Core Ancestor → Outer Cicit Expansion
             </p>
           </div>
         </div>
 
-        {/* TOP RIGHT: BATCH ISI CEPAT & BUKU BESAR */}
+        {/* TOP RIGHT: THEME TOGGLE, BATCH ISI CEPAT & BUKU BESAR */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Tombol Tema Dark / Light */}
+          <button
+            onClick={toggleTheme}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border cursor-pointer active:scale-95 ${
+              isLight
+                ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 shadow-xs'
+                : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+            }`}
+            title={`Beralih ke mode ${isLight ? 'Gelap (Dark Space)' : 'Terang (Light Heritage)'}`}
+          >
+            {isLight ? <Sun className="w-3.5 h-3.5 text-amber-600" /> : <Moon className="w-3.5 h-3.5 text-amber-300" />}
+            <span className="text-[11px] font-bold">{isLight ? 'Terang' : 'Gelap'}</span>
+          </button>
+
           <button
             onClick={handleOpenBatchModal}
             className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-md flex items-center gap-1.5 cursor-pointer"
             title="Input Cepat (Batch) Kerangka Silsilah"
           >
             <Zap className="w-3.5 h-3.5 fill-current" />
-            <span>⚡ Input Cepat (Batch)</span>
+            <span className="hidden sm:inline">⚡ Input Cepat (Batch)</span>
+            <span className="sm:hidden">⚡ Batch</span>
           </button>
 
           <button
             onClick={() => setShowLedgerModal(true)}
-            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-lg transition text-slate-200 flex items-center gap-1.5"
+            className={`text-xs border px-2.5 sm:px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 active:scale-95 ${
+              isLight
+                ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 shadow-xs'
+                : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+            }`}
             title="Buka Buku Besar Riwayat Perubahan"
           >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+            <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
             <span className="hidden sm:inline">📜 Buku Besar</span>
             <span className="sm:hidden">📜 Ledger</span>
           </button>
@@ -1997,7 +2089,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       {/* SUB-HEADER TOOLBAR (DI BAWAH HEADER)                          */}
       {/* Tombol Kipas, Lengkung, Admin/User, Garis On/Off, Reset        */}
       {/* ------------------------------------------------------------- */}
-      <div className="z-10 bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 shadow-sm no-scrollbar">
+      <div className={`z-10 ${isLight ? 'bg-slate-100/95 border-b border-slate-200 text-slate-700' : 'bg-slate-900/90 border-b border-slate-800/80 text-slate-300'} backdrop-blur px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 shadow-xs no-scrollbar`}>
         {/* Left: Kipas, Lengkung, Sambung Urut, Frame Foto, Admin/User, Garis On/Off */}
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
@@ -2010,11 +2102,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
               orbitSpreadMode === 'fan'
                 ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-xs'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
             }`}
             title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360°"
           >
-            <Compass className="w-3.5 h-3.5 text-indigo-300" />
+            <Compass className="w-3.5 h-3.5 text-indigo-400" />
             <span>{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik' : 'Pola: Melingkar 360°'}</span>
           </button>
 
@@ -2028,11 +2120,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
               lineCurveStyle === 'curved'
                 ? 'bg-sky-600/90 border-sky-400 text-white shadow-xs'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
             }`}
             title="Klik untuk ubah gaya garis: Rasi Melengkung vs Lurus"
           >
-            <Sparkles className="w-3.5 h-3.5 text-sky-300" />
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
             <span>{lineCurveStyle === 'curved' ? 'Garis: Melengkung' : 'Garis: Lurus'}</span>
           </button>
 
@@ -2046,7 +2138,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
               showOrderSequenceLines
                 ? 'bg-amber-600/90 border-amber-400 text-slate-950 font-bold shadow-xs'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
             }`}
             title="Hubungkan anak/saudara berurutan berdasarkan nomor urut (No. 1 ➔ No. 2 ➔ No. 3...)"
           >
@@ -2064,12 +2156,14 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               const label = next === 'circle' ? 'Bulat ⚪' : (next === 'square' ? 'Kotak ⬛' : 'Segi-6 ⬡');
               showNotification?.(`Bentuk frame foto profil diubah ke: ${label}`);
             }}
-            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
             title="Ganti bentuk frame bintang & foto: Bulat, Kotak, atau Segi 6"
           >
-            {globalFrameShape === 'circle' && <Circle className="w-3.5 h-3.5 text-emerald-400" />}
-            {globalFrameShape === 'square' && <Square className="w-3.5 h-3.5 text-sky-400" />}
-            {globalFrameShape === 'hexagon' && <Hexagon className="w-3.5 h-3.5 text-amber-400" />}
+            {globalFrameShape === 'circle' && <Circle className="w-3.5 h-3.5 text-emerald-500" />}
+            {globalFrameShape === 'square' && <Square className="w-3.5 h-3.5 text-sky-500" />}
+            {globalFrameShape === 'hexagon' && <Hexagon className="w-3.5 h-3.5 text-amber-500" />}
             <span>
               {globalFrameShape === 'circle' ? 'Frame: Bulat' : (globalFrameShape === 'square' ? 'Frame: Kotak' : 'Frame: Segi-6')}
             </span>
@@ -2084,7 +2178,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
               isAdminMode
                 ? 'bg-amber-600 border-amber-400 text-slate-950 font-bold'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
             }`}
             title="Beralih peran: Admin (Pengelola Silsilah Mutlak) vs User (Klaim & Keluarga Inti)"
           >
@@ -2101,8 +2195,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               }}
               className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition border flex items-center gap-1 ${
                 showConnectingLines
-                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
-                  : 'bg-rose-950/40 border-rose-500/50 text-rose-300'
+                  ? (isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300')
+                  : (isLight ? 'bg-rose-100 border-rose-300 text-rose-800' : 'bg-rose-950/40 border-rose-500/50 text-rose-300')
               }`}
               title="Admin: Tampilkan atau Hapus/Sembunyikan Garis Hubung"
             >
@@ -2125,7 +2219,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
           <button
             onClick={() => setShowDeleteConfirmModal(true)}
-            className="bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-[11px] border border-rose-800/40 px-2.5 py-1 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
+            className={`text-[11px] border px-2.5 py-1 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer ${
+              isLight
+                ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                : 'bg-rose-950/40 hover:bg-rose-900 text-rose-300 border-rose-800/40'
+            }`}
             title="Bersihkan / Hapus Semua Silsilah (Dengan Popup Konfirmasi)"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -2156,14 +2254,22 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         <div className="absolute bottom-6 right-3 sm:right-6 z-20 flex flex-col gap-2">
           <button
             onClick={handleZoomIn}
-            className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800/90 border border-slate-700 rounded-xl flex items-center justify-center text-lg font-bold shadow-lg hover:bg-slate-700 active:scale-95 transition text-white"
+            className={`w-9 h-9 sm:w-10 sm:h-10 ${
+              isLight
+                ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
+                : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
+            } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
             title="Perbesar Orbit"
           >
             +
           </button>
           <button
             onClick={handleZoomOut}
-            className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800/90 border border-slate-700 rounded-xl flex items-center justify-center text-lg font-bold shadow-lg hover:bg-slate-700 active:scale-95 transition text-white"
+            className={`w-9 h-9 sm:w-10 sm:h-10 ${
+              isLight
+                ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
+                : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
+            } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
             title="Perkecil Orbit"
           >
             -
@@ -2835,6 +2941,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                   className="flex-1 bg-amber-600 hover:bg-amber-500 font-bold py-2.5 rounded-lg text-slate-950 transition active:scale-98 shadow"
                 >
                   Simpan Perubahan Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={handleJumpToSilsilah}
+                  className="px-3 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg flex items-center gap-1 border border-slate-700 text-xs font-semibold"
+                  title="Buka di Tab Silsilah"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Silsilah</span>
                 </button>
                 {!selectedNode.isUser && (
                   <button
