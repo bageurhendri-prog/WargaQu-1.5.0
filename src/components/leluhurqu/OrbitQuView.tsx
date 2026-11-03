@@ -20,7 +20,16 @@ import {
   EyeOff,
   Heart,
   Compass,
-  Move
+  Move,
+  Save,
+  Image as ImageIcon,
+  MapPin,
+  Calendar,
+  AlertTriangle,
+  Hexagon,
+  Square,
+  Circle,
+  Upload
 } from 'lucide-react';
 
 export interface OrbitNode {
@@ -42,7 +51,9 @@ export interface OrbitNode {
   birthYear?: string;
   deathYear?: string;
   status?: 'Hidup' | 'Almarhum';
-  origin?: string;
+  origin?: string; // Alamat / Kota Asal
+  photoUrl?: string; // URL Foto atau base64 foto
+  frameShape?: 'circle' | 'square' | 'hexagon'; // Bentuk frame profil
   notes?: string;
   _renderX?: number;
   _renderY?: number;
@@ -104,7 +115,11 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Pusat Kuadran (1)",
       quadrant: "Q1",
       claimed: true,
-      role: "Uyut Utama (Pusat Bintang)"
+      role: "Uyut Utama (Pusat Bintang)",
+      birthYear: "1910",
+      deathYear: "1982",
+      status: "Almarhum",
+      origin: "Cianjur"
     },
 
     // 1. Orbit 1: 3 Anak Uyut / Kakek (1, 2, 3)
@@ -116,7 +131,11 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       quadrant: "Q1",
       claimed: true,
       role: "Kakek Sulung",
-      parentId: "uyut_1"
+      parentId: "uyut_1",
+      birthYear: "1935",
+      deathYear: "2008",
+      status: "Almarhum",
+      origin: "Bandung"
     },
     {
       id: "kakek_2",
@@ -126,7 +145,11 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       quadrant: "Q1",
       claimed: true,
       role: "Kakek Utama (Poros Ayah)",
-      parentId: "uyut_1"
+      parentId: "uyut_1",
+      birthYear: "1938",
+      deathYear: "2012",
+      status: "Almarhum",
+      origin: "Bandung"
     },
     {
       id: "kakek_3",
@@ -136,24 +159,28 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       quadrant: "Q1",
       claimed: true,
       role: "Kakek Bungsu",
-      parentId: "uyut_1"
+      parentId: "uyut_1",
+      birthYear: "1942",
+      deathYear: "2015",
+      status: "Almarhum",
+      origin: "Garut"
     },
 
     // 2. Orbit 2: 10 Anak dari Kakek No. 2 (Ayah, Paman, Bibi 1 - 10)
-    { id: "ayah_1", name: "Uwa No. 1", gen: -1, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Uwa Pertama", parentId: "kakek_2" },
-    { id: "ayah_2", name: "Ayah No. 2 (Karta)", gen: -1, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Ayah Kandung User", parentId: "kakek_2" },
-    { id: "ayah_3", name: "Paman No. 3", gen: -1, order: "Anak ke-3", quadrant: "Q1", claimed: true, role: "Paman", parentId: "kakek_2" },
-    { id: "ayah_4", name: "Bibi No. 4", gen: -1, order: "Anak ke-4", quadrant: "Q1", claimed: true, role: "Bibi", parentId: "kakek_2" },
-    { id: "ayah_5", name: "Paman No. 5", gen: -1, order: "Anak ke-5", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2" },
-    { id: "ayah_6", name: "Bibi No. 6", gen: -1, order: "Anak ke-6", quadrant: "Q1", claimed: false, role: "Bibi", parentId: "kakek_2" },
-    { id: "ayah_7", name: "Paman No. 7", gen: -1, order: "Anak ke-7", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2" },
-    { id: "ayah_8", name: "Bibi No. 8", gen: -1, order: "Anak ke-8", quadrant: "Q1", claimed: false, role: "Bibi", parentId: "kakek_2" },
-    { id: "ayah_9", name: "Paman No. 9", gen: -1, order: "Anak ke-9", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2" },
-    { id: "ayah_10", name: "Bibi No. 10", gen: -1, order: "Anak ke-10", quadrant: "Q1", claimed: false, role: "Bibi Bungsu", parentId: "kakek_2" },
+    { id: "ayah_1", name: "Uwa No. 1", gen: -1, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Uwa Pertama", parentId: "kakek_2", birthYear: "1963", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_2", name: "Ayah No. 2 (Karta)", gen: -1, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Ayah Kandung User", parentId: "kakek_2", birthYear: "1965", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_3", name: "Paman No. 3", gen: -1, order: "Anak ke-3", quadrant: "Q1", claimed: true, role: "Paman", parentId: "kakek_2", birthYear: "1968", status: "Hidup", origin: "Jakarta" },
+    { id: "ayah_4", name: "Bibi No. 4", gen: -1, order: "Anak ke-4", quadrant: "Q1", claimed: true, role: "Bibi", parentId: "kakek_2", birthYear: "1970", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_5", name: "Paman No. 5", gen: -1, order: "Anak ke-5", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2", birthYear: "1973", status: "Hidup", origin: "Bogor" },
+    { id: "ayah_6", name: "Bibi No. 6", gen: -1, order: "Anak ke-6", quadrant: "Q1", claimed: false, role: "Bibi", parentId: "kakek_2", birthYear: "1975", status: "Hidup", origin: "Bekasi" },
+    { id: "ayah_7", name: "Paman No. 7", gen: -1, order: "Anak ke-7", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2", birthYear: "1978", status: "Hidup", origin: "Bandung" },
+    { id: "ayah_8", name: "Bibi No. 8", gen: -1, order: "Anak ke-8", quadrant: "Q1", claimed: false, role: "Bibi", parentId: "kakek_2", birthYear: "1980", status: "Hidup", origin: "Tangerang" },
+    { id: "ayah_9", name: "Paman No. 9", gen: -1, order: "Anak ke-9", quadrant: "Q1", claimed: false, role: "Paman", parentId: "kakek_2", birthYear: "1983", status: "Hidup", origin: "Depok" },
+    { id: "ayah_10", name: "Bibi No. 10", gen: -1, order: "Anak ke-10", quadrant: "Q1", claimed: false, role: "Bibi Bungsu", parentId: "kakek_2", birthYear: "1986", status: "Hidup", origin: "Bandung" },
 
     // 3. Orbit 3: 6 Anak dari Ayah No. 2 (User & Saudara 1 - 6, User adalah No. 3)
-    { id: "user_sib_1", name: "Kakak No. 1", gen: 0, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Kakak Sulung", relationType: "kakak", parentId: "ayah_2" },
-    { id: "user_sib_2", name: "Kakak No. 2", gen: 0, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Kakak Kedua", relationType: "kakak", parentId: "ayah_2" },
+    { id: "user_sib_1", name: "Kakak No. 1", gen: 0, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Kakak Sulung", relationType: "kakak", parentId: "ayah_2", birthYear: "1988", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_2", name: "Kakak No. 2", gen: 0, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Kakak Kedua", relationType: "kakak", parentId: "ayah_2", birthYear: "1990", status: "Hidup", origin: "Bandung" },
     {
       id: "user_node",
       name: "Hendriana (User No. 3)",
@@ -166,16 +193,19 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       relationType: "user",
       parentId: "ayah_2",
       spouseName: "Siti Nurhaliza",
-      spouseGender: "P"
+      spouseGender: "P",
+      birthYear: "1992",
+      status: "Hidup",
+      origin: "Bandung"
     },
-    { id: "user_sib_4", name: "Adik No. 4", gen: 0, order: "Anak ke-4", quadrant: "Q1", claimed: true, role: "Adik Pertama", relationType: "adik", parentId: "ayah_2" },
-    { id: "user_sib_5", name: "Adik No. 5", gen: 0, order: "Anak ke-5", quadrant: "Q1", claimed: false, role: "Adik Kedua", relationType: "adik", parentId: "ayah_2" },
-    { id: "user_sib_6", name: "Adik No. 6", gen: 0, order: "Anak ke-6", quadrant: "Q1", claimed: false, role: "Adik Bungsu", relationType: "adik", parentId: "ayah_2" },
+    { id: "user_sib_4", name: "Adik No. 4", gen: 0, order: "Anak ke-4", quadrant: "Q1", claimed: true, role: "Adik Pertama", relationType: "adik", parentId: "ayah_2", birthYear: "1995", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_5", name: "Adik No. 5", gen: 0, order: "Anak ke-5", quadrant: "Q1", claimed: false, role: "Adik Kedua", relationType: "adik", parentId: "ayah_2", birthYear: "1998", status: "Hidup", origin: "Bandung" },
+    { id: "user_sib_6", name: "Adik No. 6", gen: 0, order: "Anak ke-6", quadrant: "Q1", claimed: false, role: "Adik Bungsu", relationType: "adik", parentId: "ayah_2", birthYear: "2001", status: "Hidup", origin: "Bandung" },
 
     // 4. Orbit 4: 3 Anak dari User No. 3
-    { id: "anak_1", name: "Anak No. 1 (Sulung)", gen: 1, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Anak Pertama", parentId: "user_node" },
-    { id: "anak_2", name: "Anak No. 2 (Tengah)", gen: 1, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Anak Kedua", parentId: "user_node" },
-    { id: "anak_3", name: "Anak No. 3 (Bungsu)", gen: 1, order: "Anak ke-3", quadrant: "Q1", claimed: true, role: "Anak Bungsu", parentId: "user_node" },
+    { id: "anak_1", name: "Anak No. 1 (Sulung)", gen: 1, order: "Anak ke-1", quadrant: "Q1", claimed: true, role: "Anak Pertama", parentId: "user_node", birthYear: "2018", status: "Hidup", origin: "Bandung" },
+    { id: "anak_2", name: "Anak No. 2 (Tengah)", gen: 1, order: "Anak ke-2", quadrant: "Q1", claimed: true, role: "Anak Kedua", parentId: "user_node", birthYear: "2021", status: "Hidup", origin: "Bandung" },
+    { id: "anak_3", name: "Anak No. 3 (Bungsu)", gen: 1, order: "Anak ke-3", quadrant: "Q1", claimed: true, role: "Anak Bungsu", parentId: "user_node", birthYear: "2024", status: "Hidup", origin: "Bandung" },
 
     // ==========================================
     // TRAH IBU USER (Q2)
@@ -232,6 +262,26 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
   // Global Line Visibility Toggle (Admin feature)
   const [showConnectingLines, setShowConnectingLines] = useState<boolean>(true);
+
+  // Bentuk Frame Foto Profil: 'circle' (Bulat) | 'square' (Kotak) | 'hexagon' (Segi-6)
+  const [globalFrameShape, setGlobalFrameShape] = useState<'circle' | 'square' | 'hexagon'>('circle');
+
+  // Garis Urut Sambung Anak / Sibling (No. 1 ➔ No. 2 ➔ No. 3...)
+  const [showOrderSequenceLines, setShowOrderSequenceLines] = useState<boolean>(true);
+
+  // Popup Peringatan Hapus Silsilah
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState<boolean>(false);
+
+  // Cache gambar foto untuk render di Canvas
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+
+  // Input State Tambahan untuk Modal User & Admin: Lahir, Wafat, Kota, Foto, Frame
+  const [claimBirthYearInput, setClaimBirthYearInput] = useState('');
+  const [claimDeathYearInput, setClaimDeathYearInput] = useState('');
+  const [claimStatusInput, setClaimStatusInput] = useState<'Hidup' | 'Almarhum'>('Hidup');
+  const [claimOriginInput, setClaimOriginInput] = useState('');
+  const [claimPhotoUrlInput, setClaimPhotoUrlInput] = useState('');
+  const [claimFrameShapeInput, setClaimFrameShapeInput] = useState<'circle' | 'square' | 'hexagon'>('circle');
 
   // Tree State (Persisted)
   const [familyTree, setFamilyTree] = useState<OrbitTreeData>(() => {
@@ -336,15 +386,21 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     ]);
   };
 
-  // Reset or Clean Data
-  const handleResetCleanData = () => {
-    setFamilyTree(CLEAN_REAL_TREE_DATA);
-    addLog('Reset Data Mutlak', 'Mengembalikan silsilah ke contoh resmi rasi bintang: 1 Uyut -> 3 Kakek -> 10 Ayah -> 6 User/Saudara -> 3 Anak.');
-    showNotification?.('Data silsilah dikembalikan ke struktur resmi mutlak!');
-    renderCanvas();
+  // Simpan Silsilah Permanen & Lanjut Edit
+  const handleSaveTreeData = () => {
+    try {
+      localStorage.setItem('wargaqu_orbitqu_tree_v6', JSON.stringify(familyTree));
+      localStorage.setItem('wargaqu_orbitqu_logs_v6', JSON.stringify(logs));
+      addLog('Simpan Silsilah', `Silsilah berhasil disimpan (${familyTree.nodes.length} bintang anggota). Anda dapat terus melanjutkan edit.`);
+      showNotification?.('💾 Silsilah berhasil disimpan! Anda dapat terus melanjutkan edit.');
+    } catch (e) {
+      console.error(e);
+      showNotification?.('Gagal menyimpan silsilah ke memori.');
+    }
   };
 
-  const handleClearAllData = () => {
+  // Bersihkan Data dengan Konfirmasi Modal
+  const handleConfirmClearAllData = () => {
     const emptyTree: OrbitTreeData = {
       quadrants: CLEAN_REAL_TREE_DATA.quadrants,
       nodes: [
@@ -357,13 +413,16 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           claimed: true,
           isUser: true,
           role: "User (Poros Bintang)",
-          spouseName: "Siti Nurhaliza"
+          spouseName: "Siti Nurhaliza",
+          origin: "Bandung",
+          status: "Hidup"
         }
       ]
     };
     setFamilyTree(emptyTree);
-    addLog('Bersihkan Data', 'Menghapus seluruh node silsilah untuk memulai lembar baru.');
+    addLog('Bersihkan Data', 'Admin mengosongkan seluruh silsilah orbit untuk memulai lembar baru.');
     showNotification?.('Data silsilah berhasil dibersihkan!');
+    setShowDeleteConfirmModal(false);
     renderCanvas();
   };
 
@@ -848,6 +907,97 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     }
 
     // =========================================================
+    // 2B. TOMBOL GARIS URUT / SAMBUNG DARI NO 1 - SETERUSNYA
+    // Sibling sequential connections (1 ➔ 2 ➔ 3 ➔ ...)
+    // =========================================================
+    if (showOrderSequenceLines) {
+      (Object.keys(familyTree.quadrants) as Array<keyof typeof familyTree.quadrants>).forEach(qKey => {
+        const q = familyTree.quadrants[qKey];
+        const generations = [-2, -1, 0, 1, 2, 3];
+        generations.forEach(gen => {
+          const genNodes = familyTree.nodes.filter(n => (n.quadrant || 'Q1') === qKey && n.gen === gen);
+          const parentGroups = new Map<string, OrbitNode[]>();
+          genNodes.forEach(node => {
+            const pKey = node.parentId || 'common_' + gen;
+            if (!parentGroups.has(pKey)) parentGroups.set(pKey, []);
+            parentGroups.get(pKey)!.push(node);
+          });
+
+          parentGroups.forEach(siblings => {
+            if (siblings.length < 2) return;
+
+            const extractNum = (n: OrbitNode) => {
+              const m = n.order.match(/\d+/);
+              if (m) return parseInt(m[0], 10);
+              const nm = n.name.match(/(?:No\.?|ke-?)\s*(\d+)/i);
+              if (nm) return parseInt(nm[1], 10);
+              return 999;
+            };
+
+            const sorted = [...siblings].sort((a, b) => extractNum(a) - extractNum(b));
+
+            for (let i = 0; i < sorted.length - 1; i++) {
+              const current = sorted[i];
+              const next = sorted[i + 1];
+              if (current._renderX === undefined || current._renderY === undefined ||
+                  next._renderX === undefined || next._renderY === undefined) continue;
+
+              ctx.save();
+              ctx.beginPath();
+
+              const curR = current._radius;
+              const nextR = next._radius;
+              const curAngle = current._angle;
+              const nextAngle = next._angle;
+
+              // Jika berada pada radius orbit yang sama, gambar busur lengkung sepanjang cincin orbit
+              if (curR !== undefined && nextR !== undefined && Math.abs(curR - nextR) < 15 &&
+                  curAngle !== undefined && nextAngle !== undefined) {
+                const startA = curAngle;
+                const endA = nextAngle;
+                let diff = endA - startA;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+
+                ctx.arc(q.center.x, q.center.y, curR, startA, startA + diff, diff < 0);
+              } else {
+                ctx.moveTo(current._renderX, current._renderY);
+                ctx.lineTo(next._renderX, next._renderY);
+              }
+
+              ctx.strokeStyle = "#f59e0b"; // Golden amber
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 4]);
+              ctx.shadowColor = "#f59e0b";
+              ctx.shadowBlur = 5;
+              ctx.stroke();
+              ctx.setLineDash([]);
+
+              // Arrow badge di tengah segmen garis urut
+              const midX = (current._renderX + next._renderX) / 2;
+              const midY = (current._renderY + next._renderY) / 2;
+
+              ctx.beginPath();
+              ctx.arc(midX, midY, 9, 0, Math.PI * 2);
+              ctx.fillStyle = "#451a03";
+              ctx.fill();
+              ctx.strokeStyle = "#fbbf24";
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+
+              ctx.font = "bold 8px sans-serif";
+              ctx.fillStyle = "#fef08a";
+              ctx.textAlign = "center";
+              ctx.fillText(`${i + 1}➔${i + 2}`, midX, midY + 3);
+
+              ctx.restore();
+            }
+          });
+        });
+      });
+    }
+
+    // =========================================================
     // 3. JALUR PENGHUBUNG KOSMOS PADA ORBIT 3 (POROS USER GEN 0)
     // =========================================================
     const userNodes = familyTree.nodes.filter(n => n.gen === 0 && (n.isUser || n.name.includes("User")));
@@ -881,6 +1031,31 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       });
     }
 
+    // Helper functions untuk bentuk frame foto: Bulat, Kotak, Segi-6
+    const drawHexagonPath = (context: CanvasRenderingContext2D, cx: number, cy: number, r: number) => {
+      context.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 6;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      context.closePath();
+    };
+
+    const drawFrameShapePath = (context: CanvasRenderingContext2D, cx: number, cy: number, r: number, nodeShape: 'circle' | 'square' | 'hexagon') => {
+      if (nodeShape === 'square') {
+        context.beginPath();
+        context.roundRect(cx - r, cy - r, r * 2, r * 2, 7);
+      } else if (nodeShape === 'hexagon') {
+        drawHexagonPath(context, cx, cy, r * 1.15);
+      } else {
+        context.beginPath();
+        context.arc(cx, cy, r, 0, Math.PI * 2);
+      }
+    };
+
     // =========================================================
     // 4. BINTANG-BINTANG ANGGOTA KELUARGA & PASANGAN BERDAMPINGAN
     // =========================================================
@@ -896,6 +1071,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const isCucu = node.gen === 2;
       const isCicit = node.gen === 3;
       const isHighlighted = activeLineageIds.has(node.id);
+      const shape = node.frameShape || globalFrameShape;
 
       let radius = 18;
       if (isUyut) radius = 25;
@@ -926,51 +1102,75 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       // Aura pendar bintang saat disorot / terpilih
       if (isHighlighted) {
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(node._renderX, node._renderY, radius + 7, 0, Math.PI * 2);
+        drawFrameShapePath(ctx, node._renderX, node._renderY, radius + 7, shape);
         ctx.fillStyle = isUserEgo ? "#38bdf833" : "#fef08a33";
         ctx.fill();
         ctx.restore();
       }
 
-      // Lingkaran Inti Bintang (Star Core)
-      ctx.beginPath();
-      ctx.arc(node._renderX, node._renderY, radius, 0, Math.PI * 2);
+      // Frame / Bentuk Bintang (Bulat, Kotak, Segi-6)
+      drawFrameShapePath(ctx, node._renderX, node._renderY, radius, shape);
       ctx.fillStyle = nodeColor;
       ctx.fill();
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = isUyut || isUserEgo ? 3.5 : 2.2;
       ctx.stroke();
 
-      // Ikon Bintang di Tengah
+      // Render Foto atau Ikon di dalam frame
+      let hasRenderedPhoto = false;
+      if (node.photoUrl) {
+        let img = imageCacheRef.current.get(node.photoUrl);
+        if (!img) {
+          img = new Image();
+          img.src = node.photoUrl;
+          img.onload = () => {
+            renderCanvas();
+          };
+          imageCacheRef.current.set(node.photoUrl, img);
+        }
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.save();
+          drawFrameShapePath(ctx, node._renderX, node._renderY, radius - 2, shape);
+          ctx.clip();
+          ctx.drawImage(img, node._renderX - radius, node._renderY - radius, radius * 2, radius * 2);
+          ctx.restore();
+          hasRenderedPhoto = true;
+        }
+      }
+
+      if (!hasRenderedPhoto) {
+        ctx.save();
+        ctx.translate(node._renderX, node._renderY);
+
+        let icon = "?";
+        if (isUyut) icon = "👑";
+        else if (isUserEgo) icon = "👤";
+        else if (isUserSaudara) icon = node.relationType === 'kakak' ? "🔺" : (node.relationType === 'adik' ? "🔻" : "👥");
+        else if (node.claimed) icon = "✦";
+
+        ctx.font = isUyut || isUserEgo ? "bold 12px sans-serif" : "11px sans-serif";
+        ctx.fillStyle = isUyut ? "#0f172a" : "#ffffff";
+        ctx.textAlign = "center";
+        ctx.fillText(icon, 0, 4);
+        ctx.restore();
+      }
+
+      // KAPSUL LABEL LENGKAP: NAMA, LAHIR-WAFAT, ALAMAT KOTA (ANTI-TUMPANG TINDIH)
       ctx.save();
       ctx.translate(node._renderX, node._renderY);
 
-      let icon = "?";
-      if (isUyut) icon = "👑";
-      else if (isUserEgo) icon = "👤";
-      else if (isUserSaudara) icon = node.relationType === 'kakak' ? "🔺" : (node.relationType === 'adik' ? "🔻" : "👥");
-      else if (node.claimed) icon = "✦";
+      interface LabelLine {
+        text: string;
+        font: string;
+        color: string;
+      }
 
-      ctx.font = isUyut || isUserEgo ? "bold 12px sans-serif" : "11px sans-serif";
-      ctx.fillStyle = isUyut ? "#0f172a" : "#ffffff";
-      ctx.textAlign = "center";
-      ctx.fillText(icon, 0, 4);
-
-      // KAPSUL LABEL NAMA ANTI-TUMPANG TINDIH (Sleek dark backdrop pill)
-      ctx.font = isUserEgo ? "bold 11px sans-serif" : "bold 10px sans-serif";
-      const nameWidth = ctx.measureText(node.name).width;
-
-      ctx.fillStyle = "#070b14ea";
-      ctx.beginPath();
-      ctx.roundRect(-nameWidth / 2 - 6, radius + 3, nameWidth + 12, 17, 5);
-      ctx.fill();
-      ctx.strokeStyle = isUserEgo ? "#38bdf888" : "#33415588";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.fillStyle = isUserEgo ? "#38bdf8" : "#f8fafc";
-      ctx.fillText(node.name, 0, radius + 15);
+      const lines: LabelLine[] = [];
+      lines.push({
+        text: node.name,
+        font: isUserEgo ? "bold 11px sans-serif" : "bold 10px sans-serif",
+        color: isUserEgo ? "#38bdf8" : "#f8fafc"
+      });
 
       // Sub-label Urutan & Orbit
       let orbitLabel = "";
@@ -982,20 +1182,73 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       else if (isCucu) orbitLabel = "Orbit 5 (Cucu)";
       else if (isCicit) orbitLabel = "Orbit 6 (Cicit)";
 
-      ctx.font = "9px sans-serif";
-      ctx.fillStyle = isUserEgo ? "#93c5fd" : (isUserSaudara ? "#2dd4bf" : "#94a3b8");
-      ctx.fillText(`${node.order} • ${orbitLabel}`, 0, radius + 31);
+      lines.push({
+        text: `${node.order} • ${orbitLabel}`,
+        font: "9px sans-serif",
+        color: isUserEgo ? "#93c5fd" : (isUserSaudara ? "#2dd4bf" : "#94a3b8")
+      });
+
+      // Baris Lahir - Wafat / Status
+      if (node.birthYear || node.deathYear || node.status) {
+        let lifeText = "";
+        if (node.birthYear && node.deathYear) {
+          lifeText = `${node.birthYear} - ${node.deathYear}`;
+        } else if (node.birthYear) {
+          lifeText = `${node.birthYear} - ${node.status === 'Almarhum' ? 'Wafat' : 'Skrg'}`;
+        } else if (node.status) {
+          lifeText = node.status;
+        }
+        if (lifeText) {
+          lines.push({
+            text: `⏳ ${lifeText}`,
+            font: "9px sans-serif",
+            color: "#cbd5e1"
+          });
+        }
+      }
+
+      // Baris Alamat / Kota Asal
+      if (node.origin) {
+        lines.push({
+          text: `📍 ${node.origin}`,
+          font: "9px sans-serif",
+          color: "#67e8f9"
+        });
+      }
 
       if (node.customAngle !== undefined) {
-        ctx.fillStyle = "#818cf8";
-        ctx.fillText("(Posisi Kustom)", 0, radius + 42);
+        lines.push({ text: "(Posisi Kustom)", font: "8px sans-serif", color: "#818cf8" });
       } else if (node.hideLine) {
-        ctx.fillStyle = "#f43f5e";
-        ctx.fillText("(Garis Terputus)", 0, radius + 42);
+        lines.push({ text: "(Garis Terputus)", font: "8px sans-serif", color: "#f43f5e" });
       } else if (!node.claimed && !isUyut) {
-        ctx.fillStyle = "#f59e0b";
-        ctx.fillText("Belum Diklaim", 0, radius + 42);
+        lines.push({ text: "Belum Diklaim", font: "8px sans-serif", color: "#f59e0b" });
       }
+
+      let maxLineWidth = 0;
+      lines.forEach(l => {
+        ctx.font = l.font;
+        const w = ctx.measureText(l.text).width;
+        if (w > maxLineWidth) maxLineWidth = w;
+      });
+
+      const pillWidth = Math.max(maxLineWidth + 16, 72);
+      const pillHeight = lines.length * 13 + 8;
+      const pillY = radius + 4;
+
+      ctx.fillStyle = "#070b14f0";
+      ctx.beginPath();
+      ctx.roundRect(-pillWidth / 2, pillY, pillWidth, pillHeight, 6);
+      ctx.fill();
+      ctx.strokeStyle = isUserEgo ? "#38bdf888" : "#33415599";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      lines.forEach((l, idx) => {
+        ctx.font = l.font;
+        ctx.fillStyle = l.color;
+        ctx.textAlign = "center";
+        ctx.fillText(l.text, 0, pillY + 12 + idx * 13);
+      });
 
       ctx.restore();
 
@@ -1004,6 +1257,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       // =========================================================
       if (node.spouseName && node._spouseX !== undefined && node._spouseY !== undefined) {
         const spouseR = 19;
+        const spouseShape = globalFrameShape;
 
         // Garis cincin cinta melengkung penghubung user & pasangan
         ctx.beginPath();
@@ -1022,9 +1276,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.fillText("💍", midX, midY - 6);
         ctx.restore();
 
-        // Lingkaran Pasangan (Warna Rose Pink Kontras & Beda Warna)
-        ctx.beginPath();
-        ctx.arc(node._spouseX, node._spouseY, spouseR, 0, Math.PI * 2);
+        // Frame Pasangan (Warna Rose Pink Kontras & Beda Warna)
+        drawFrameShapePath(ctx, node._spouseX, node._spouseY, spouseR, spouseShape);
         ctx.fillStyle = "#be123c";
         ctx.fill();
         ctx.strokeStyle = "#fda4af";
@@ -1042,17 +1295,18 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
         ctx.font = "bold 10px sans-serif";
         const spouseTextWidth = ctx.measureText(node.spouseName).width;
+        const sPillWidth = Math.max(spouseTextWidth + 16, 75);
 
         ctx.fillStyle = "#070b14ea";
         ctx.beginPath();
-        ctx.roundRect(-spouseTextWidth / 2 - 6, spouseR + 3, spouseTextWidth + 12, 17, 5);
+        ctx.roundRect(-sPillWidth / 2, spouseR + 4, sPillWidth, 32, 6);
         ctx.fill();
         ctx.strokeStyle = "#fda4af88";
         ctx.lineWidth = 1;
         ctx.stroke();
 
         ctx.fillStyle = "#fda4af";
-        ctx.fillText(node.spouseName, 0, spouseR + 15);
+        ctx.fillText(node.spouseName, 0, spouseR + 16);
 
         ctx.font = "9px sans-serif";
         ctx.fillStyle = "#f43f5e";
@@ -1080,11 +1334,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines]);
 
   useEffect(() => {
     renderCanvas();
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines]);
 
   // -------------------------------------------------------------
   // MOUSE & TOUCH GESTURES (DRAGGING CAMERA ATAU DRAGGING BINTANG DI ORBIT)
@@ -1284,13 +1538,19 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     setCustomParentName(node.parentId || '');
     setParentSelectMode('existing');
 
+    setClaimNameInput(node.name || '');
+    setClaimSpouseInput(node.spouseName || '');
+    setClaimNotesInput(node.notes || '');
+    setClaimBirthYearInput(node.birthYear || '');
+    setClaimDeathYearInput(node.deathYear || '');
+    setClaimStatusInput(node.status || 'Hidup');
+    setClaimOriginInput(node.origin || '');
+    setClaimPhotoUrlInput(node.photoUrl || '');
+    setClaimFrameShapeInput(node.frameShape || globalFrameShape);
+
     if (isAdminMode) {
       setShowAdminEditModal(true);
     } else {
-      // User Mode: Modal Klaim & Keluarga Inti
-      setClaimNameInput(node.name);
-      setClaimSpouseInput(node.spouseName || '');
-      setClaimNotesInput(node.notes || '');
       setShowUserClaimModal(true);
     }
   };
@@ -1361,6 +1621,12 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               name: claimNameInput.trim() || n.name,
               claimed: true,
               spouseName: claimSpouseInput.trim() || undefined,
+              birthYear: claimBirthYearInput.trim() || undefined,
+              deathYear: claimDeathYearInput.trim() || undefined,
+              status: claimStatusInput,
+              origin: claimOriginInput.trim() || undefined,
+              photoUrl: claimPhotoUrlInput.trim() || undefined,
+              frameShape: claimFrameShapeInput,
               notes: claimNotesInput.trim() || undefined
             }
           : n
@@ -1369,7 +1635,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
     addLog('Klaim User', `Profil ${claimNameInput || selectedNode.name} diklaim oleh User. Pasangan: ${claimSpouseInput || 'Tidak diisi'}`);
     setShowUserClaimModal(false);
-    showNotification?.('Profil & Data Keluarga Inti (Pasangan) berhasil disimpan!');
+    showNotification?.('Profil & Data Keluarga Inti berhasil disimpan!');
     renderCanvas();
   };
 
@@ -1397,7 +1663,14 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               parentId: finalParentId,
               hideLine: selectedNode.hideLine,
               spouseName: selectedNode.spouseName,
-              customAngle: selectedNode.customAngle
+              customAngle: selectedNode.customAngle,
+              birthYear: selectedNode.birthYear,
+              deathYear: selectedNode.deathYear,
+              status: selectedNode.status,
+              origin: selectedNode.origin,
+              photoUrl: selectedNode.photoUrl,
+              frameShape: selectedNode.frameShape,
+              notes: selectedNode.notes
             }
           : n
       )
@@ -1724,8 +1997,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       {/* SUB-HEADER TOOLBAR (DI BAWAH HEADER)                          */}
       {/* Tombol Kipas, Lengkung, Admin/User, Garis On/Off, Reset        */}
       {/* ------------------------------------------------------------- */}
-      <div className="z-10 bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 shadow-sm">
-        {/* Left: Kipas, Lengkung, Admin/User, Garis On/Off */}
+      <div className="z-10 bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 shadow-sm no-scrollbar">
+        {/* Left: Kipas, Lengkung, Sambung Urut, Frame Foto, Admin/User, Garis On/Off */}
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
           <button
@@ -1742,7 +2015,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360°"
           >
             <Compass className="w-3.5 h-3.5 text-indigo-300" />
-            <span>{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik (Anti-Silang)' : 'Pola: Melingkar 360°'}</span>
+            <span>{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik' : 'Pola: Melingkar 360°'}</span>
           </button>
 
           {/* Gaya Garis Rasi Bintang Melengkung vs Lurus */}
@@ -1760,7 +2033,46 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             title="Klik untuk ubah gaya garis: Rasi Melengkung vs Lurus"
           >
             <Sparkles className="w-3.5 h-3.5 text-sky-300" />
-            <span>{lineCurveStyle === 'curved' ? 'Garis: Rasi Melengkung' : 'Garis: Lurus'}</span>
+            <span>{lineCurveStyle === 'curved' ? 'Garis: Melengkung' : 'Garis: Lurus'}</span>
+          </button>
+
+          {/* TOMBOL BARU: GARIS URUT / SAMBUNG DARI NO 1 - SETERUSNYA */}
+          <button
+            onClick={() => {
+              const next = !showOrderSequenceLines;
+              setShowOrderSequenceLines(next);
+              showNotification?.(next ? '🔗 Garis Sambung No. Urut (1 ➔ 2 ➔ 3...) Diaktifkan!' : 'Garis sambung urut dimatikan.');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              showOrderSequenceLines
+                ? 'bg-amber-600/90 border-amber-400 text-slate-950 font-bold shadow-xs'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Hubungkan anak/saudara berurutan berdasarkan nomor urut (No. 1 ➔ No. 2 ➔ No. 3...)"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>{showOrderSequenceLines ? 'Sambung Urut: On' : 'Sambung No. Urut'}</span>
+          </button>
+
+          {/* TOMBOL BARU: OPSI FRAME FOTO BULAT / KOTAK / SEGI 6 */}
+          <button
+            onClick={() => {
+              const shapes: Array<'circle' | 'square' | 'hexagon'> = ['circle', 'square', 'hexagon'];
+              const nextIdx = (shapes.indexOf(globalFrameShape) + 1) % shapes.length;
+              const next = shapes[nextIdx];
+              setGlobalFrameShape(next);
+              const label = next === 'circle' ? 'Bulat ⚪' : (next === 'square' ? 'Kotak ⬛' : 'Segi-6 ⬡');
+              showNotification?.(`Bentuk frame foto profil diubah ke: ${label}`);
+            }}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700"
+            title="Ganti bentuk frame bintang & foto: Bulat, Kotak, atau Segi 6"
+          >
+            {globalFrameShape === 'circle' && <Circle className="w-3.5 h-3.5 text-emerald-400" />}
+            {globalFrameShape === 'square' && <Square className="w-3.5 h-3.5 text-sky-400" />}
+            {globalFrameShape === 'hexagon' && <Hexagon className="w-3.5 h-3.5 text-amber-400" />}
+            <span>
+              {globalFrameShape === 'circle' ? 'Frame: Bulat' : (globalFrameShape === 'square' ? 'Frame: Kotak' : 'Frame: Segi-6')}
+            </span>
           </button>
 
           {/* Mode Switch: Admin Trah vs User Warga */}
@@ -1800,24 +2112,25 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           )}
         </div>
 
-        {/* Right: Reset Nyata & Bersihkan */}
+        {/* Right: Simpan Silsilah (Ganti tombol Reset) & Hapus Semua (Dengan Popup Peringatan) */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
-            onClick={handleResetCleanData}
-            className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 px-2 py-1 rounded-lg transition active:scale-95 flex items-center gap-1"
-            title="Reset Contoh Nyata (1 Uyut - 3 Kakek - 10 Ayah - 6 User - 3 Anak)"
+            onClick={handleSaveTreeData}
+            className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold text-[11px] px-3 py-1 rounded-lg transition active:scale-95 flex items-center gap-1.5 shadow-sm cursor-pointer"
+            title="Simpan seluruh silsilah dan lanjutkan pengeditan kapan saja"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Reset Nyata</span>
+            <Save className="w-3.5 h-3.5 fill-current" />
+            <span>Simpan Silsilah</span>
           </button>
 
           <button
-            onClick={handleClearAllData}
-            className="bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-[11px] border border-rose-800/40 px-2 py-1 rounded-lg transition active:scale-95 flex items-center gap-1"
-            title="Bersihkan Semua Data / Mulai Lembar Bersih"
+            onClick={() => setShowDeleteConfirmModal(true)}
+            className="bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-[11px] border border-rose-800/40 px-2.5 py-1 rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
+            title="Bersihkan / Hapus Semua Silsilah (Dengan Popup Konfirmasi)"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Bersihkan</span>
+            <span className="hidden sm:inline">Hapus Semua</span>
+            <span className="sm:hidden">Hapus</span>
           </button>
         </div>
       </div>
@@ -1867,11 +2180,49 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       </main>
 
       {/* ------------------------------------------------------------- */}
-      {/* MODAL USER: KLAIM & KELUARGA INTI (PASANGAN & ANAK)            */}
+      {/* POPUP PERINGATAN KONFIRMASI HAPUS SILSILAH                   */}
+      {/* ------------------------------------------------------------- */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-rose-500/40 w-full max-w-sm rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-rose-400">Peringatan: Hapus Seluruh Silsilah?</h3>
+                <p className="text-[11px] text-slate-400">Konfirmasi tindakan penghapusan</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed bg-rose-950/30 p-3 rounded-xl border border-rose-900/40">
+              Apakah Anda yakin ingin menghapus seluruh susunan data silsilah di kanvas orbit? Semua generasi dan hubungan keluarga akan dikosongkan. <strong>Tindakan ini tidak dapat dibatalkan.</strong>
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmModal(false)}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmClearAllData}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md transition"
+              >
+                Ya, Hapus Semua
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL USER: KLAIM & KELUARGA INTI (PASANGAN, FOTO & DATA)     */}
       {/* ------------------------------------------------------------- */}
       {showUserClaimModal && selectedNode && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col gap-3 text-slate-100">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col gap-3 text-slate-100 max-h-[92vh] overflow-y-auto no-scrollbar">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-sky-600/30 text-sky-400 flex items-center justify-center">
@@ -1879,7 +2230,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-sky-400">
-                    Klaim &amp; Data Keluarga Inti
+                    Klaim &amp; Data Profil Lengkap
                   </h3>
                   <p className="text-[10px] text-slate-400">
                     Bintang: <strong>{selectedNode.name}</strong> ({selectedNode.order})
@@ -1922,6 +2273,130 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 <p className="text-[10px] text-pink-200/80 leading-relaxed">
                   Pasangan akan tampil <strong>menempel berdampingan</strong> pada orbit yang sama dengan warna Rose Pink yang kontras.
                 </p>
+              </div>
+
+              {/* Lahir - Wafat & Status */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-sky-400" />
+                    Tahun Lahir
+                  </label>
+                  <input
+                    type="text"
+                    value={claimBirthYearInput}
+                    onChange={e => setClaimBirthYearInput(e.target.value)}
+                    placeholder="cth: 1992"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Tahun Wafat</label>
+                  <input
+                    type="text"
+                    value={claimDeathYearInput}
+                    onChange={e => setClaimDeathYearInput(e.target.value)}
+                    placeholder="cth: 2020"
+                    disabled={claimStatusInput === 'Hidup'}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500 disabled:opacity-40 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Status</label>
+                  <select
+                    value={claimStatusInput}
+                    onChange={e => setClaimStatusInput(e.target.value as 'Hidup' | 'Almarhum')}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500 text-xs"
+                  >
+                    <option value="Hidup">Hidup</option>
+                    <option value="Almarhum">Almarhum</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Alamat / Kota Asal */}
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-400" />
+                  Alamat / Kota Asal
+                </label>
+                <input
+                  type="text"
+                  value={claimOriginInput}
+                  onChange={e => setClaimOriginInput(e.target.value)}
+                  placeholder="Contoh: Bandung, Jawa Barat"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500 text-xs"
+                />
+              </div>
+
+              {/* Foto Profil & Bentuk Frame */}
+              <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-semibold flex items-center gap-1.5 text-xs">
+                    <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+                    Foto Profil &amp; Frame Bintang
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setClaimFrameShapeInput('circle')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        claimFrameShapeInput === 'circle' ? 'bg-sky-600 border-sky-400 text-white' : 'border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Bulat ⚪
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClaimFrameShapeInput('square')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        claimFrameShapeInput === 'square' ? 'bg-sky-600 border-sky-400 text-white' : 'border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Kotak ⬛
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClaimFrameShapeInput('hexagon')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        claimFrameShapeInput === 'hexagon' ? 'bg-sky-600 border-sky-400 text-white' : 'border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Segi 6 ⬡
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={claimPhotoUrlInput}
+                    onChange={e => setClaimPhotoUrlInput(e.target.value)}
+                    placeholder="URL Foto atau upload file di samping"
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500 text-xs"
+                  />
+                  <label className="px-2.5 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 cursor-pointer flex items-center gap-1 shrink-0 text-xs font-semibold">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = ev => {
+                            if (ev.target?.result) {
+                              setClaimPhotoUrlInput(ev.target.result as string);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
 
               {/* Kontrol Fleksibel Geser Bintang di Orbit */}
@@ -1974,7 +2449,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                   type="text"
                   value={claimNotesInput}
                   onChange={e => setClaimNotesInput(e.target.value)}
-                  placeholder="Contoh: Tanggal pernikahan atau kontak"
+                  placeholder="Contoh: Pekerjaan, kontak atau catatan penting"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500"
                 />
               </div>
@@ -2101,6 +2576,130 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                   placeholder="Nama Istri / Suami (cth: Siti Nurhaliza)"
                   className="w-full bg-slate-800 border border-pink-500/40 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-pink-400"
                 />
+              </div>
+
+              {/* Lahir - Wafat & Status */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-amber-400" />
+                    Tahun Lahir
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedNode.birthYear || ''}
+                    onChange={e => setSelectedNode({ ...selectedNode, birthYear: e.target.value })}
+                    placeholder="cth: 1965"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Tahun Wafat</label>
+                  <input
+                    type="text"
+                    value={selectedNode.deathYear || ''}
+                    onChange={e => setSelectedNode({ ...selectedNode, deathYear: e.target.value })}
+                    placeholder="cth: 2012"
+                    disabled={selectedNode.status === 'Hidup'}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-amber-500 disabled:opacity-40 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Status</label>
+                  <select
+                    value={selectedNode.status || 'Hidup'}
+                    onChange={e => setSelectedNode({ ...selectedNode, status: e.target.value as 'Hidup' | 'Almarhum' })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs"
+                  >
+                    <option value="Hidup">Hidup</option>
+                    <option value="Almarhum">Almarhum</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Alamat / Kota Asal */}
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-emerald-400" />
+                  Alamat / Kota Asal
+                </label>
+                <input
+                  type="text"
+                  value={selectedNode.origin || ''}
+                  onChange={e => setSelectedNode({ ...selectedNode, origin: e.target.value })}
+                  placeholder="Contoh: Bandung, Jawa Barat"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs"
+                />
+              </div>
+
+              {/* Foto Profil & Bentuk Frame */}
+              <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 font-semibold flex items-center gap-1.5 text-xs">
+                    <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                    Foto Profil &amp; Frame Bintang
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNode({ ...selectedNode, frameShape: 'circle' })}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        (selectedNode.frameShape || globalFrameShape) === 'circle' ? 'bg-amber-600 border-amber-400 text-slate-950 font-bold' : 'border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Bulat ⚪
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNode({ ...selectedNode, frameShape: 'square' })}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        selectedNode.frameShape === 'square' ? 'bg-amber-600 border-amber-400 text-slate-950 font-bold' : 'border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Kotak ⬛
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNode({ ...selectedNode, frameShape: 'hexagon' })}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        selectedNode.frameShape === 'hexagon' ? 'bg-amber-600 border-amber-400 text-slate-950 font-bold' : 'border-slate-700 text-slate-400'
+                      }`}
+                    >
+                      Segi 6 ⬡
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={selectedNode.photoUrl || ''}
+                    onChange={e => setSelectedNode({ ...selectedNode, photoUrl: e.target.value })}
+                    placeholder="URL Foto atau upload file di samping"
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-amber-500 text-xs"
+                  />
+                  <label className="px-2.5 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 cursor-pointer flex items-center gap-1 shrink-0 text-xs font-semibold">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = ev => {
+                            if (ev.target?.result) {
+                              setSelectedNode({ ...selectedNode, photoUrl: ev.target.result as string });
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
 
               {/* Kontrol Fleksibel Geser Bintang di Orbit (Admin) */}
