@@ -1670,7 +1670,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       {/* ------------------------------------------------------------- */}
       {/* HEADER / TOP BAR                                              */}
       {/* ------------------------------------------------------------- */}
-      <header className="absolute top-0 left-0 right-0 z-20 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-3 py-2 flex items-center justify-between shadow-lg gap-2">
+      <header className="z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md gap-2 shrink-0">
         <div className="flex items-center gap-2 shrink-0">
           {onBackToLeluhurQu && (
             <button
@@ -1681,24 +1681,52 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
-          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center font-bold text-slate-950 text-xs shadow-md">
+          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center font-bold text-slate-950 text-xs shadow-md shrink-0">
             LQ
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="font-bold text-xs sm:text-sm leading-none text-white">Leluhur<span className="text-emerald-400">Qu</span></h1>
-              <span className="text-[9px] bg-sky-950 text-sky-400 border border-sky-400/40 px-1 py-0.2 rounded font-mono font-bold">
-                Rasi Bintang
+              <h1 className="font-bold text-sm leading-none text-white">Leluhur<span className="text-emerald-400">Qu</span></h1>
+              <span className="text-[9px] bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-semibold">
+                OrbitQu
               </span>
             </div>
-            <p className="text-[9px] text-slate-400 truncate max-w-[130px] sm:max-w-none">
-              Anti-Silang &amp; Anti-Bersebrangan • Garis Melengkung Fleksibel
+            <p className="text-[10px] text-slate-400 leading-tight">
+              Core Ancestor → Outer Cicit Expansion
             </p>
           </div>
         </div>
 
-        {/* CONTROLS CENTER: POLA SEBARAN (KIPAS KOSMIK) & GAYA GARIS MELENGKUNG */}
-        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 shrink-0">
+        {/* TOP RIGHT: BATCH ISI CEPAT & BUKU BESAR */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleOpenBatchModal}
+            className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-md flex items-center gap-1.5 cursor-pointer"
+            title="Input Cepat (Batch) Kerangka Silsilah"
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span>⚡ Input Cepat (Batch)</span>
+          </button>
+
+          <button
+            onClick={() => setShowLedgerModal(true)}
+            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-lg transition text-slate-200 flex items-center gap-1.5"
+            title="Buka Buku Besar Riwayat Perubahan"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">📜 Buku Besar</span>
+            <span className="sm:hidden">📜 Ledger</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ------------------------------------------------------------- */}
+      {/* SUB-HEADER TOOLBAR (DI BAWAH HEADER)                          */}
+      {/* Tombol Kipas, Lengkung, Admin/User, Garis On/Off, Reset        */}
+      {/* ------------------------------------------------------------- */}
+      <div className="z-10 bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 shadow-sm">
+        {/* Left: Kipas, Lengkung, Admin/User, Garis On/Off */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
           <button
             onClick={() => {
@@ -1706,14 +1734,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               setOrbitSpreadMode(next);
               showNotification?.(next === 'fan' ? '🌌 Pola Kipas Kosmik aktif (Percabangan melebar keluar tanpa menyebrang).' : '🪐 Pola Melingkar 360° aktif.');
             }}
-            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
-              orbitSpreadMode === 'fan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              orbitSpreadMode === 'fan'
+                ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-xs'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
             }`}
-            title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360"
+            title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360°"
           >
-            <Compass className="w-3 h-3 text-indigo-300" />
-            <span className="hidden md:inline">{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik (Anti-Silang)' : 'Pola: Melingkar 360°'}</span>
-            <span className="md:hidden">{orbitSpreadMode === 'fan' ? 'Kipas' : '360°'}</span>
+            <Compass className="w-3.5 h-3.5 text-indigo-300" />
+            <span>{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik (Anti-Silang)' : 'Pola: Melingkar 360°'}</span>
           </button>
 
           {/* Gaya Garis Rasi Bintang Melengkung vs Lurus */}
@@ -1723,14 +1752,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               setLineCurveStyle(next);
               showNotification?.(next === 'curved' ? '✨ Garis rasi bintang melengkung halus aktif.' : '📏 Garis lurus konvensional aktif.');
             }}
-            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
-              lineCurveStyle === 'curved' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              lineCurveStyle === 'curved'
+                ? 'bg-sky-600/90 border-sky-400 text-white shadow-xs'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
             }`}
             title="Klik untuk ubah gaya garis: Rasi Melengkung vs Lurus"
           >
-            <Sparkles className="w-3 h-3 text-sky-300" />
-            <span className="hidden md:inline">{lineCurveStyle === 'curved' ? 'Garis: Rasi Melengkung' : 'Garis: Lurus'}</span>
-            <span className="md:hidden">{lineCurveStyle === 'curved' ? 'Lengkung' : 'Lurus'}</span>
+            <Sparkles className="w-3.5 h-3.5 text-sky-300" />
+            <span>{lineCurveStyle === 'curved' ? 'Garis: Rasi Melengkung' : 'Garis: Lurus'}</span>
           </button>
 
           {/* Mode Switch: Admin Trah vs User Warga */}
@@ -1739,25 +1769,25 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               setIsAdminMode(!isAdminMode);
               showNotification?.(!isAdminMode ? '🛡️ Mode Admin Trah Aktif' : '👤 Mode User Warga Aktif');
             }}
-            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
-              isAdminMode ? 'bg-amber-600 text-slate-950' : 'bg-slate-800 text-slate-300'
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              isAdminMode
+                ? 'bg-amber-600 border-amber-400 text-slate-950 font-bold'
+                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
             }`}
             title="Beralih peran: Admin (Pengelola Silsilah Mutlak) vs User (Klaim & Keluarga Inti)"
           >
-            <Shield className="w-3 h-3" />
-            <span>{isAdminMode ? 'Admin' : 'User'}</span>
+            <Shield className="w-3.5 h-3.5" />
+            <span>Peran: {isAdminMode ? 'Admin' : 'User'}</span>
           </button>
-        </div>
 
-        {/* ACTION BUTTONS: BATCH, GARIS ON/OFF, RESET */}
-        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Mode Admin: Garis On / Off */}
           {isAdminMode && (
             <button
               onClick={() => {
                 setShowConnectingLines(!showConnectingLines);
                 showNotification?.(!showConnectingLines ? 'Garis konektor diaktifkan.' : 'Garis konektor disembunyikan/dihapus.');
               }}
-              className={`p-1.5 rounded-lg border text-[11px] font-semibold transition active:scale-95 flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition border flex items-center gap-1 ${
                 showConnectingLines
                   ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
                   : 'bg-rose-950/40 border-rose-500/50 text-rose-300'
@@ -1765,52 +1795,37 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               title="Admin: Tampilkan atau Hapus/Sembunyikan Garis Hubung"
             >
               {showConnectingLines ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              <span className="hidden lg:inline">{showConnectingLines ? 'Garis: On' : 'Garis: Off'}</span>
+              <span>{showConnectingLines ? 'Garis: On' : 'Garis: Off'}</span>
             </button>
           )}
+        </div>
 
-          <button
-            onClick={handleOpenBatchModal}
-            className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1"
-            title="Kelola & Edit Kerangka Silsilah Mutlak di Batch"
-          >
-            <Zap className="w-3.5 h-3.5 fill-current" />
-            <span className="hidden sm:inline">Input / Edit Batch</span>
-            <span className="sm:hidden">Batch</span>
-          </button>
-
+        {/* Right: Reset Nyata & Bersihkan */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={handleResetCleanData}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 p-1.5 sm:px-2 rounded-lg transition active:scale-95 flex items-center gap-1"
+            className="bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 px-2 py-1 rounded-lg transition active:scale-95 flex items-center gap-1"
             title="Reset Contoh Nyata (1 Uyut - 3 Kakek - 10 Ayah - 6 User - 3 Anak)"
           >
             <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden lg:inline">Reset Nyata</span>
+            <span className="hidden sm:inline">Reset Nyata</span>
           </button>
 
           <button
             onClick={handleClearAllData}
-            className="bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-[11px] border border-rose-800/40 p-1.5 sm:px-2 rounded-lg transition active:scale-95 flex items-center gap-1"
+            className="bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-[11px] border border-rose-800/40 px-2 py-1 rounded-lg transition active:scale-95 flex items-center gap-1"
             title="Bersihkan Semua Data / Mulai Lembar Bersih"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">Bersihkan</span>
-          </button>
-
-          <button
-            onClick={() => setShowLedgerModal(true)}
-            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-[11px] border border-slate-700 p-1.5 sm:px-2 rounded-lg transition text-slate-200 flex items-center gap-1"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden lg:inline">Buku Besar</span>
+            <span className="hidden sm:inline">Bersihkan</span>
           </button>
         </div>
-      </header>
+      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* CANVAS / INTERACTIVE MAP AREA                                  */}
       {/* ------------------------------------------------------------- */}
-      <main className="relative w-full h-full flex-1 touch-none">
+      <main className="relative w-full flex-1 touch-none overflow-hidden">
         <canvas
           ref={canvasRef}
           onMouseDown={handleMouseDown}
@@ -1825,7 +1840,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         />
 
         {/* FLOATING NAVIGATION (ZOOM, GPS) */}
-        <div className="absolute bottom-16 sm:bottom-6 right-3 sm:right-6 z-20 flex flex-col gap-2">
+        <div className="absolute bottom-6 right-3 sm:right-6 z-20 flex flex-col gap-2">
           <button
             onClick={handleZoomIn}
             className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-800/90 border border-slate-700 rounded-xl flex items-center justify-center text-lg font-bold shadow-lg hover:bg-slate-700 active:scale-95 transition text-white"
@@ -1848,26 +1863,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             <Crosshair className="w-4 h-4" />
             <span>GPS Center</span>
           </button>
-        </div>
-
-        {/* LEGEND & PETUNJUK RASI BINTANG KOSMIK */}
-        <div className="absolute bottom-16 sm:bottom-6 left-3 sm:left-6 z-20 bg-slate-900/90 backdrop-blur p-2.5 sm:p-3 rounded-xl border border-slate-800 text-xs flex flex-col gap-1.5 shadow-xl max-w-[310px] sm:max-w-sm">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-200 text-[11px] flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-              Solusi Rasi Bintang Anti-Silang:
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono">{zoomLevelDisplay}%</span>
-          </div>
-          <div className="text-[10px] text-sky-300 bg-sky-950/40 p-1.5 rounded-lg border border-sky-500/30 leading-relaxed">
-            ✨ <strong>Garis Melengkung:</strong> Mengikuti kelengkungan orbit radial, 100% bebas garis saling silang &amp; anti-bersebrangan.
-          </div>
-          <div className="text-[10px] text-slate-300 leading-relaxed">
-            ✋ <strong>Fleksibel:</strong> Klik &amp; tahan pada bintang untuk menggeser posisinya bebas sepanjang lingkaran orbit!
-          </div>
-          <div className="text-[9px] text-slate-400 border-t border-slate-800 pt-1 flex items-center justify-between">
-            <span>Klik bintang mana pun untuk menyorot jalur nasabnya terang benderang.</span>
-          </div>
         </div>
       </main>
 
