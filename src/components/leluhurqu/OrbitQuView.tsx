@@ -15,15 +15,12 @@ import {
   GitBranch,
   ExternalLink,
   RotateCcw,
-  RotateCw,
   Shield,
   Eye,
   EyeOff,
   Heart,
-  Move,
-  Sliders,
-  CheckCircle2,
-  Compass
+  Compass,
+  Move
 } from 'lucide-react';
 
 export interface OrbitNode {
@@ -35,13 +32,13 @@ export interface OrbitNode {
   claimed: boolean;
   parentId?: string; // ID induk di orbit sebelumnya
   hideLine?: boolean; // Admin bisa memutus/menghapus garis langsung
-  customAngle?: number; // Sudut manual hasil geser/pindah (dalam radian)
   gender?: 'L' | 'P';
   role?: string;
   isUser?: boolean;
   spouseName?: string; // Pasangan tampil berdampingan/nempel beda warna
   spouseGender?: 'L' | 'P';
   relationType?: 'user' | 'kakak' | 'adik' | 'pasangan' | 'saudara' | 'leluhur' | 'keturunan';
+  customAngle?: number; // Sudut fleksibel yang bisa digeser bebas di garis orbit rasi bintang
   birthYear?: string;
   deathYear?: string;
   status?: 'Hidup' | 'Almarhum';
@@ -52,6 +49,7 @@ export interface OrbitNode {
   _spouseX?: number;
   _spouseY?: number;
   _angle?: number;
+  _radius?: number;
   _sectorStart?: number;
   _sectorEnd?: number;
 }
@@ -89,10 +87,10 @@ export interface LedgerLog {
 // ----------------------------------------------------------------------------
 const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
   quadrants: {
-    Q1: { name: "Trah Ayah User (Kiri-Atas)", color: "#3b82f6", center: { x: -620, y: -540 } },
-    Q2: { name: "Trah Ibu User (Kanan-Atas)", color: "#10b981", center: { x: 620, y: -540 } },
-    Q3: { name: "Trah Ayah Pasangan (Kiri-Bawah)", color: "#f43f5e", center: { x: -620, y: 540 } },
-    Q4: { name: "Trah Ibu Pasangan (Kanan-Bawah)", color: "#a855f7", center: { x: 620, y: 540 } }
+    Q1: { name: "Trah Ayah User (Kiri-Atas)", color: "#38bdf8", center: { x: -620, y: -540 } },
+    Q2: { name: "Trah Ibu User (Kanan-Atas)", color: "#34d399", center: { x: 620, y: -540 } },
+    Q3: { name: "Trah Ayah Pasangan (Kiri-Bawah)", color: "#fb7185", center: { x: -620, y: 540 } },
+    Q4: { name: "Trah Ibu Pasangan (Kanan-Bawah)", color: "#c084fc", center: { x: 620, y: 540 } }
   },
   nodes: [
     // ==========================================
@@ -106,10 +104,10 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
       order: "Pusat Kuadran (1)",
       quadrant: "Q1",
       claimed: true,
-      role: "Uyut Utama (Pusat)"
+      role: "Uyut Utama (Pusat Bintang)"
     },
 
-    // 1. Orbit 1: 3 Anak Uyut / Kakek (A, B, C)
+    // 1. Orbit 1: 3 Anak Uyut / Kakek (1, 2, 3)
     {
       id: "kakek_1",
       name: "Kakek 1 (A)",
@@ -206,8 +204,8 @@ const CLEAN_REAL_TREE_DATA: OrbitTreeData = {
 };
 
 const DEFAULT_LOGS: LedgerLog[] = [
-  { id: "log-1", time: "System Init", action: "Silsilah Mutlak Admin", text: "Struktur Hierarki: 1 Uyut -> 3 Kakek -> 10 Ayah (Kakek B) -> 6 User/Saudara (Ayah 2) -> 3 Anak (User 3)." },
-  { id: "log-2", time: "09:30", action: "Direct Radial Align", text: "Auto Proporsional diaktifkan: anak memancar lurus keluar dari orang tua tanpa bersebrangan." }
+  { id: "log-1", time: "System Init", action: "Rasi Bintang Kosmik", text: "Garis rasi bintang melengkung halus aktif (anti saling silang & anti bersebrangan)." },
+  { id: "log-2", time: "16:20", action: "Pola Sebaran", text: "Pola Kipas Kosmik (Fan Outward) aktif: percabangan melebar ke angkasa luar tanpa menyebrang kuadran lain." }
 ];
 
 interface OrbitQuViewProps {
@@ -223,27 +221,16 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Role Mode: Admin Trah vs User Warga
+  // Mode Peran: Admin Trah vs User Warga
   const [isAdminMode, setIsAdminMode] = useState<boolean>(true);
 
-  // Canvas Interactive Mode: 'pan' (Geser Kanvas) vs 'moveNode' (Pindah / Geser Node Manual di Orbit)
-  const [interactionMode, setInteractionMode] = useState<'pan' | 'moveNode'>('pan');
+  // Pola Sebaran: 'fan' (Kipas Kosmik 180° Menghadap Keluar - Anti Bersebrangan) vs 'circle' (Melingkar 360°)
+  const [orbitSpreadMode, setOrbitSpreadMode] = useState<'fan' | 'circle'>('fan');
 
-  // Cascade Move: apakah menggeser orang tua otomatis menggeser anak-cucunya
-  const [cascadeSubtreeMove, setCascadeSubtreeMove] = useState<boolean>(true);
+  // Gaya Garis: 'curved' (Rasi Bintang Melengkung Bezier) vs 'straight' (Garis Lurus)
+  const [lineCurveStyle, setLineCurveStyle] = useState<'curved' | 'straight'>('curved');
 
-  // Rotasi Kuadran (dalam radian)
-  const [quadrantRotations, setQuadrantRotations] = useState<{ [q: string]: number }>({
-    Q1: 0,
-    Q2: 0,
-    Q3: 0,
-    Q4: 0
-  });
-
-  // Kuadran yang aktif untuk kontrol rotasi
-  const [activeRotationQuadrant, setActiveRotationQuadrant] = useState<'Q1' | 'Q2' | 'Q3' | 'Q4'>('Q1');
-
-  // Global Line Visibility Toggle
+  // Global Line Visibility Toggle (Admin feature)
   const [showConnectingLines, setShowConnectingLines] = useState<boolean>(true);
 
   // Tree State (Persisted)
@@ -271,9 +258,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   const [showUserClaimModal, setShowUserClaimModal] = useState(false);
   const [showAddChildModal, setShowAddChildModal] = useState(false);
   const [showLedgerModal, setShowLedgerModal] = useState(false);
-  const [showRotationControl, setShowRotationControl] = useState(false);
 
-  // Selected Node
+  // Selected Node (for highlight & edit)
   const [selectedNode, setSelectedNode] = useState<OrbitNode | null>(null);
 
   // User Claim & Core Family State
@@ -304,15 +290,25 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   const cameraRef = useRef({ x: 0, y: 0, zoom: 0.65 });
   const [zoomLevelDisplay, setZoomLevelDisplay] = useState(65);
 
-  // Dragging & Interaction State
+  // Mouse / Touch Gesture & Interactive Node Drag State
   const dragRef = useRef({
-    isDragging: false,
-    movingNodeId: null as string | null,
-    movingNodeInitialAngle: 0,
+    isDraggingCamera: false,
     startX: 0,
     startY: 0,
     hasMoved: false,
     initialPinchDist: 0
+  });
+
+  const nodeDragRef = useRef<{
+    isDraggingNode: boolean;
+    nodeId: string | null;
+    quadrant: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+    hasDragged: boolean;
+  }>({
+    isDraggingNode: false,
+    nodeId: null,
+    quadrant: 'Q1',
+    hasDragged: false
   });
 
   // Save to LocalStorage
@@ -343,8 +339,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   // Reset or Clean Data
   const handleResetCleanData = () => {
     setFamilyTree(CLEAN_REAL_TREE_DATA);
-    setQuadrantRotations({ Q1: 0, Q2: 0, Q3: 0, Q4: 0 });
-    addLog('Reset Data Mutlak', 'Mengembalikan silsilah ke contoh resmi dan menyelaraskan seluruh posisi orbit.');
+    addLog('Reset Data Mutlak', 'Mengembalikan silsilah ke contoh resmi rasi bintang: 1 Uyut -> 3 Kakek -> 10 Ayah -> 6 User/Saudara -> 3 Anak.');
     showNotification?.('Data silsilah dikembalikan ke struktur resmi mutlak!');
     renderCanvas();
   };
@@ -361,7 +356,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           quadrant: "Q1",
           claimed: true,
           isUser: true,
-          role: "User (Poros Utama)",
+          role: "User (Poros Bintang)",
           spouseName: "Siti Nurhaliza"
         }
       ]
@@ -369,47 +364,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     setFamilyTree(emptyTree);
     addLog('Bersihkan Data', 'Menghapus seluruh node silsilah untuk memulai lembar baru.');
     showNotification?.('Data silsilah berhasil dibersihkan!');
-    renderCanvas();
-  };
-
-  // -------------------------------------------------------------
-  // FITUR UTAMA: AUTO PROPORSIONAL & RAPIKAN POSISI SEARAH ORTU
-  // Merapikan posisi langsung agar posisi anak tidak bersebrangan dengan ortu
-  // -------------------------------------------------------------
-  const handleAutoProportional = () => {
-    setFamilyTree(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => ({
-        ...n,
-        customAngle: undefined // Reset pergeseran manual yang bersebrangan
-      }))
-    }));
-    setQuadrantRotations({ Q1: 0, Q2: 0, Q3: 0, Q4: 0 });
-    addLog('Auto Proporsional', 'Merapikan posisi orbit otomatis: seluruh anak kini sejajar keluar searah orang tua tanpa bersebrangan.');
-    showNotification?.('✨ Posisi orbit dirapikan proporsional: seluruh anak kini sejajar searah dengan ortu!');
-    renderCanvas();
-  };
-
-  // Rotasi Kuadran Orbit
-  const handleRotateQuadrant = (deltaDeg: number) => {
-    const deltaRad = (deltaDeg * Math.PI) / 180;
-    setQuadrantRotations(prev => {
-      const nextRad = (prev[activeRotationQuadrant] || 0) + deltaRad;
-      return {
-        ...prev,
-        [activeRotationQuadrant]: nextRad
-      };
-    });
-    addLog('Rotasi Orbit', `Kuadran ${activeRotationQuadrant} diputar ${deltaDeg > 0 ? '+' : ''}${deltaDeg}°`);
-    renderCanvas();
-  };
-
-  const handleResetRotation = () => {
-    setQuadrantRotations(prev => ({
-      ...prev,
-      [activeRotationQuadrant]: 0
-    }));
-    showNotification?.(`🔄 Sudut rotasi ${activeRotationQuadrant} dikembalikan ke 0°`);
     renderCanvas();
   };
 
@@ -442,15 +396,44 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   };
 
   // -------------------------------------------------------------
-  // DIRECT-RADIAL SYMMETRICAL BRANCHING ALGORITHM
-  // Menjamin anak memancar lurus keluar dari ortunya, TIDAK PERNAH BERSEBRANGAN
+  // TRACE ANCESTORS & DESCENDANTS FOR ACTIVE HIGHLIGHT
+  // -------------------------------------------------------------
+  const getActiveLineageIds = (target: OrbitNode | null): Set<string> => {
+    const set = new Set<string>();
+    if (!target) return set;
+
+    set.add(target.id);
+
+    // Trace Ke Atas (Leluhur sampai Uyut)
+    let curr: OrbitNode | undefined = target;
+    while (curr && curr.parentId) {
+      set.add(curr.parentId);
+      curr = familyTree.nodes.find(n => n.id === curr?.parentId);
+    }
+
+    // Trace Ke Bawah (Anak & Keturunan langsung)
+    const addDescendants = (parentId: string) => {
+      const children = familyTree.nodes.filter(n => n.parentId === parentId);
+      children.forEach(c => {
+        set.add(c.id);
+        addDescendants(c.id);
+      });
+    };
+    addDescendants(target.id);
+
+    return set;
+  };
+
+  // -------------------------------------------------------------
+  // HIERARCHICAL CONSTELLATION RADIAL TREE ALGORITHM
+  // Anti-Crossing (Zero Crossings) & Anti-Bersebrangan (Fan Outward Mode)
+  // Dynamic radial expansion: jika orbit penuh maka radius melebar tanpa penumpukan
   // -------------------------------------------------------------
   const calculatePositions = (tree: OrbitTreeData) => {
     (Object.keys(tree.quadrants) as Array<keyof typeof tree.quadrants>).forEach(qKey => {
       const q = tree.quadrants[qKey];
       const qCenter = q.center;
       const qNodes = tree.nodes.filter(n => (n.quadrant || 'Q1') === qKey);
-      const quadRotation = quadrantRotations[qKey] || 0;
 
       // Hitung jumlah node per generasi untuk pelebaran radius dinamis
       const counts: { [gen: number]: number } = {};
@@ -458,15 +441,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         counts[n.gen] = (counts[n.gen] || 0) + 1;
       });
 
-      // Orbit radii dinamis (melebar otomatis jika penuh agar tidak menumpuk)
+      // Orbit radii dinamis (melebar otomatis jika node banyak agar tidak menumpuk)
       const baseRadii: { [gen: number]: number } = {
         [-3]: 0,    // Pusat: Uyut
         [-2]: 90,   // Orbit 1: Kakek
-        [-1]: 170,  // Orbit 2: Ayah / Paman / Bibi
-        [0]: 250,   // Orbit 3: User & Saudara
-        [1]: 330,   // Orbit 4: Anak
-        [2]: 410,   // Orbit 5: Cucu
-        [3]: 490    // Orbit 6: Cicit (Terluar)
+        [-1]: 175,  // Orbit 2: Ayah / Paman / Bibi
+        [0]: 260,   // Orbit 3: User & Saudara
+        [1]: 345,   // Orbit 4: Anak
+        [2]: 430,   // Orbit 5: Cucu
+        [3]: 515    // Orbit 6: Cicit (Terluar)
       };
 
       const finalRadii: { [gen: number]: number } = { ...baseRadii };
@@ -478,116 +461,167 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           return;
         }
         const count = counts[gen] || 0;
-        // Jarak keliling minimal antar-node = 48px agar tidak berhimpit
-        const minRadiusForCount = Math.max(baseRadii[gen], (count * 48) / (2 * Math.PI));
+        // Jarak keliling minimal antar-bintang = 52px
+        const minRadiusForCount = Math.max(baseRadii[gen], (count * 52) / (2 * Math.PI));
         const resolvedRadius = Math.max(minRadiusForCount, prevRadius + 75);
         finalRadii[gen] = resolvedRadius;
         prevRadius = resolvedRadius;
       });
 
-      // 1. Pusat Kuadran: Uyut (R=0)
+      // SUDUT SEKTOR UTAMA KUADRAN (Pola Kipas Kosmik / Fan Outward: Anti-Bersebrangan)
+      // Menghadap ke luar angkasa bebas (menjauhi pusat kanvas 0,0) sehingga garis tidak saling menyebrang!
+      let qSectorStart = 0;
+      let qSectorEnd = Math.PI * 2;
+
+      if (orbitSpreadMode === 'fan') {
+        if (qKey === 'Q1') {
+          // Kiri-Atas: Fan menghadap Up-Left (sudut 135° +/- 75°)
+          qSectorStart = Math.PI * 0.75 - Math.PI * 0.42;
+          qSectorEnd = Math.PI * 0.75 + Math.PI * 0.42;
+        } else if (qKey === 'Q2') {
+          // Kanan-Atas: Fan menghadap Up-Right (sudut 315° / -45° +/- 75°)
+          qSectorStart = -Math.PI * 0.25 - Math.PI * 0.42;
+          qSectorEnd = -Math.PI * 0.25 + Math.PI * 0.42;
+        } else if (qKey === 'Q3') {
+          // Kiri-Bawah: Fan menghadap Down-Left (sudut 225° / -135° +/- 75°)
+          qSectorStart = Math.PI * 1.25 - Math.PI * 0.42;
+          qSectorEnd = Math.PI * 1.25 + Math.PI * 0.42;
+        } else {
+          // Kanan-Bawah: Fan menghadap Down-Right (sudut 45° +/- 75°)
+          qSectorStart = Math.PI * 0.25 - Math.PI * 0.42;
+          qSectorEnd = Math.PI * 0.25 + Math.PI * 0.42;
+        }
+      }
+
+      // 1. Tempatkan Pusat Kuadran: Uyut (R=0)
       const uyutList = qNodes.filter(n => n.gen === -3);
       uyutList.forEach(uyut => {
         uyut._renderX = qCenter.x;
         uyut._renderY = qCenter.y;
-        uyut._angle = 0;
+        uyut._angle = (qSectorStart + qSectorEnd) / 2;
+        uyut._radius = 0;
+        uyut._sectorStart = qSectorStart;
+        uyut._sectorEnd = qSectorEnd;
       });
 
-      // Arah dasar kuadran (menghadap ke arah luar kuadran)
-      let baseHeading = -Math.PI / 2; // Default ke atas
-      if (qKey === 'Q1') baseHeading = -Math.PI * 0.75; // Kiri-Atas
-      else if (qKey === 'Q2') baseHeading = -Math.PI * 0.25; // Kanan-Atas
-      else if (qKey === 'Q3') baseHeading = Math.PI * 0.75; // Kiri-Bawah
-      else if (qKey === 'Q4') baseHeading = Math.PI * 0.25; // Kanan-Bawah
+      // Helper bobot subtree
+      const getSubtreeWeight = (nodeId: string): number => {
+        const directChildren = qNodes.filter(n => n.parentId === nodeId);
+        if (directChildren.length === 0) return 1;
+        let sum = 0;
+        directChildren.forEach(c => {
+          sum += getSubtreeWeight(c.id);
+        });
+        return Math.max(directChildren.length, sum);
+      };
 
-      // 2. Orbit 1: Kakek
+      // 2. Orbit 1: Kakek (Membagi sektor kuadran sesuai porsi keturunan)
       const kakekList = qNodes.filter(n => n.gen === -2);
-      const K = kakekList.length;
-      if (K > 0) {
+      if (kakekList.length > 0) {
+        let totalKakekWeight = 0;
+        kakekList.forEach(k => {
+          totalKakekWeight += getSubtreeWeight(k.id);
+        });
+
+        const totalSpan = qSectorEnd - qSectorStart;
+        let currentAngle = qSectorStart;
         const radiusO1 = finalRadii[-2];
-        const kakekSpan = K > 1 ? Math.min(Math.PI * 1.1, (K - 1) * 0.7) : 0;
-        const kakekStep = K > 1 ? kakekSpan / (K - 1) : 0;
 
-        kakekList.forEach((kakek, i) => {
-          let angle: number;
-          if (kakek.customAngle !== undefined) {
-            angle = kakek.customAngle + quadRotation;
-          } else {
-            angle = baseHeading - kakekSpan / 2 + i * kakekStep + quadRotation;
-          }
+        kakekList.forEach(kakek => {
+          const weight = getSubtreeWeight(kakek.id);
+          const sectorSpan = (weight / totalKakekWeight) * totalSpan;
+          const midAngle = currentAngle + sectorSpan / 2;
 
-          kakek._angle = angle;
-          kakek._renderX = qCenter.x + radiusO1 * Math.cos(angle);
-          kakek._renderY = qCenter.y + radiusO1 * Math.sin(angle);
+          kakek._sectorStart = currentAngle;
+          kakek._sectorEnd = currentAngle + sectorSpan;
+          kakek._radius = radiusO1;
+
+          // Gunakan customAngle jika user telah menggeser secara fleksibel
+          const finalAngle = kakek.customAngle !== undefined ? kakek.customAngle : midAngle;
+          kakek._angle = finalAngle;
+          kakek._renderX = qCenter.x + radiusO1 * Math.cos(finalAngle);
+          kakek._renderY = qCenter.y + radiusO1 * Math.sin(finalAngle);
+
+          currentAngle += sectorSpan;
         });
       }
 
-      // 3. FUNGSI PENATAAN ANAK LANGSUNG SEARAH ORTU (ANTI-BERSEBRANGAN)
-      const alignChildrenDirectlyToParent = (parentGen: number, childGen: number) => {
+      // 3. Rekursif menata generasi berikutnya dalam sektor orang tuanya (ZERO CROSSING LINES)
+      const layoutChildrenInParentSector = (parentGen: number, childGen: number) => {
         const parents = qNodes.filter(n => n.gen === parentGen);
         const radius = finalRadii[childGen];
 
         parents.forEach(p => {
           const children = qNodes.filter(n => n.gen === childGen && n.parentId === p.id);
-          const M = children.length;
-          if (M === 0) return;
+          if (children.length === 0) return;
 
-          const pAngle = p._angle !== undefined ? p._angle : baseHeading;
+          const pStart = p._sectorStart !== undefined ? p._sectorStart : qSectorStart;
+          const pEnd = p._sectorEnd !== undefined ? p._sectorEnd : qSectorEnd;
+          const pSpan = pEnd - pStart;
 
-          // Jarak sudut antar anak di orbit ini
-          const arcStep = 46 / radius; // ~46px arc distance
-          const totalSpan = (M - 1) * arcStep;
-          const startAngle = pAngle - totalSpan / 2;
+          let totalChildWeight = 0;
+          children.forEach(c => {
+            totalChildWeight += getSubtreeWeight(c.id);
+          });
 
-          children.forEach((child, idx) => {
-            let cAngle: number;
-            if (child.customAngle !== undefined) {
-              cAngle = child.customAngle + quadRotation;
-            } else {
-              cAngle = startAngle + idx * arcStep;
-            }
+          let cAngle = pStart;
+          children.forEach((child) => {
+            const cWeight = getSubtreeWeight(child.id);
+            const cSpan = (cWeight / totalChildWeight) * pSpan;
+            const midAngle = cAngle + cSpan / 2;
 
-            child._angle = cAngle;
-            child._renderX = qCenter.x + radius * Math.cos(cAngle);
-            child._renderY = qCenter.y + radius * Math.sin(cAngle);
+            child._sectorStart = cAngle;
+            child._sectorEnd = cAngle + cSpan;
+            child._radius = radius;
+
+            // Jika user/admin menggeser bintang di rasi bintang (customAngle)
+            const finalAngle = child.customAngle !== undefined ? child.customAngle : midAngle;
+            child._angle = finalAngle;
+            child._renderX = qCenter.x + radius * Math.cos(finalAngle);
+            child._renderY = qCenter.y + radius * Math.sin(finalAngle);
+
+            cAngle += cSpan;
           });
         });
 
-        // Tangani anak tanpa parentId terdefinisi
+        // Anak tanpa parentId
         const unassigned = qNodes.filter(n => n.gen === childGen && n._renderX === undefined);
         if (unassigned.length > 0) {
+          const totalSpan = qSectorEnd - qSectorStart;
           unassigned.forEach((node, idx) => {
-            const angle = baseHeading + (idx - (unassigned.length - 1) / 2) * 0.3 + quadRotation;
-            node._angle = angle;
-            node._renderX = qCenter.x + radius * Math.cos(angle);
-            node._renderY = qCenter.y + radius * Math.sin(angle);
+            const angle = qSectorStart + ((idx + 0.5) / unassigned.length) * totalSpan;
+            node._radius = radius;
+            const finalAngle = node.customAngle !== undefined ? node.customAngle : angle;
+            node._angle = finalAngle;
+            node._renderX = qCenter.x + radius * Math.cos(finalAngle);
+            node._renderY = qCenter.y + radius * Math.sin(finalAngle);
           });
         }
       };
 
-      // Orbit 1 -> Orbit 2 (10 Ayah/Paman/Bibi memancar keluar langsung dari Kakek 2)
-      alignChildrenDirectlyToParent(-2, -1);
-      // Orbit 2 -> Orbit 3 (6 User & Saudara memancar keluar langsung dari Ayah 2)
-      alignChildrenDirectlyToParent(-1, 0);
-      // Orbit 3 -> Orbit 4 (3 Anak memancar keluar langsung dari User 3)
-      alignChildrenDirectlyToParent(0, 1);
+      // Orbit 1 -> Orbit 2 (Ayah 1..10 presisi di sektor Kakek B)
+      layoutChildrenInParentSector(-2, -1);
+      // Orbit 2 -> Orbit 3 (User & Saudara 1..6 berdampingan)
+      layoutChildrenInParentSector(-1, 0);
+      // Orbit 3 -> Orbit 4 (Anak 1..3)
+      layoutChildrenInParentSector(0, 1);
       // Orbit 4 -> Orbit 5 (Cucu)
-      alignChildrenDirectlyToParent(1, 2);
+      layoutChildrenInParentSector(1, 2);
       // Orbit 5 -> Orbit 6 (Cicit)
-      alignChildrenDirectlyToParent(2, 3);
+      layoutChildrenInParentSector(2, 3);
 
       // Hitung posisi nempel/berdampingan untuk Pasangan User
       qNodes.forEach(node => {
         if (node.spouseName && node._renderX !== undefined && node._renderY !== undefined) {
-          const currentRadius = Math.sqrt(
+          const currentRadius = node._radius || Math.sqrt(
             Math.pow(node._renderX - qCenter.x, 2) + Math.pow(node._renderY - qCenter.y, 2)
           );
           const currentAngle = node._angle !== undefined
             ? node._angle
             : Math.atan2(node._renderY - qCenter.y, node._renderX - qCenter.x);
 
-          // Geser tangensial sedikit di orbit yang sama (nempel / berdampingan)
-          const spouseAngle = currentAngle + 0.13;
+          // Geser sedikit di orbit yang sama (nempel / berdampingan)
+          const spouseAngle = currentAngle + 0.12;
           node._spouseX = qCenter.x + currentRadius * Math.cos(spouseAngle);
           node._spouseY = qCenter.y + currentRadius * Math.sin(spouseAngle);
         }
@@ -622,19 +656,22 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
     calculatePositions(familyTree);
 
+    // Kumpulan ID node yang sedang disorot (jalur aktif rasi bintang)
+    const activeLineageIds = getActiveLineageIds(selectedNode);
+
     // Background Kosmos Tata Surya
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#0b0f19";
+    ctx.fillStyle = "#070b14";
     ctx.fillRect(0, 0, width, height);
 
     ctx.save();
     ctx.translate(width / 2 + camX, height / 2 + camY);
     ctx.scale(zoom, zoom);
 
-    // Grid bintang kosmos
-    ctx.fillStyle = "#1e293b22";
-    for (let gx = -1600; gx <= 1600; gx += 160) {
-      for (let gy = -1400; gy <= 1400; gy += 160) {
+    // Taburan rasi bintang latar belakang
+    ctx.fillStyle = "#1e293b33";
+    for (let gx = -1800; gx <= 1800; gx += 140) {
+      for (let gy = -1600; gy <= 1600; gy += 140) {
         ctx.beginPath();
         ctx.arc(gx, gy, 1.2, 0, Math.PI * 2);
         ctx.fill();
@@ -642,7 +679,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     }
 
     // =========================================================
-    // 1. CINCIN 6 ORBIT TIAP KUADRAN
+    // 1. CINCIN 6 ORBIT TIAP KUADRAN (LENGKUNG HALUS)
     // =========================================================
     (Object.keys(familyTree.quadrants) as Array<keyof typeof familyTree.quadrants>).forEach(qKey => {
       const q = familyTree.quadrants[qKey];
@@ -651,13 +688,13 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       // Hitung radius dinamis kuadran ini
       const counts: { [gen: number]: number } = {};
       qNodes.forEach(n => { counts[n.gen] = (counts[n.gen] || 0) + 1; });
-      const baseR = [90, 170, 250, 330, 410, 490];
+      const baseR = [90, 175, 260, 345, 430, 515];
       const ringRadii: number[] = [];
       let prevR = 0;
       baseR.forEach((br, idx) => {
-        const gen = idx - 2;
+        const gen = idx - 2; // -2 s/d 3
         const count = counts[gen] || 0;
-        const minR = Math.max(br, (count * 48) / (2 * Math.PI));
+        const minR = Math.max(br, (count * 52) / (2 * Math.PI));
         const resR = Math.max(minR, prevR + 75);
         ringRadii.push(resR);
         prevR = resR;
@@ -677,15 +714,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.arc(q.center.x, q.center.y, ring.r, 0, Math.PI * 2);
 
         if (ring.isPoros) {
-          ctx.strokeStyle = "#38bdf888";
+          ctx.strokeStyle = "#38bdf866";
           ctx.lineWidth = 2.2;
-          ctx.setLineDash([6, 4]);
+          ctx.setLineDash([6, 5]);
         } else if (ring.isOuter) {
-          ctx.strokeStyle = q.color + "55";
+          ctx.strokeStyle = q.color + "44";
           ctx.lineWidth = 1.8;
           ctx.setLineDash([4, 4]);
         } else {
-          ctx.strokeStyle = q.color + "30";
+          ctx.strokeStyle = q.color + "25";
           ctx.lineWidth = 1.2;
           ctx.setLineDash([5, 5]);
         }
@@ -693,16 +730,16 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.setLineDash([]);
 
         ctx.font = ring.isPoros ? "bold 10px sans-serif" : "9px sans-serif";
-        ctx.fillStyle = ring.isPoros ? "#38bdf8" : q.color + "aa";
+        ctx.fillStyle = ring.isPoros ? "#38bdf8" : q.color + "99";
         ctx.textAlign = "left";
         ctx.fillText(ring.label, q.center.x + ring.r + 6, q.center.y);
       });
 
       // Batas Luar Kuadran
-      const maxR = ringRadii[5] + 60;
+      const maxR = ringRadii[5] + 55;
       ctx.beginPath();
       ctx.arc(q.center.x, q.center.y, maxR, 0, Math.PI * 2);
-      ctx.strokeStyle = q.color + "40";
+      ctx.strokeStyle = q.color + "35";
       ctx.lineWidth = 2;
       ctx.stroke();
 
@@ -714,7 +751,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     });
 
     // =========================================================
-    // 2. GARIS KONEKTOR HIERARKI MUTLAK (ZERO CROSSING LINES)
+    // 2. GARIS RASI BINTANG MELENGKUNG (SMOOTH CURVED CONSTELLATION ARCS)
+    // Menggunakan Cubic Bezier Curve radial alami agar tidak saling silang & tidak bersebrangan!
     // =========================================================
     if (showConnectingLines) {
       (Object.keys(familyTree.quadrants) as Array<keyof typeof familyTree.quadrants>).forEach(qKey => {
@@ -726,22 +764,80 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           const children = qNodes.filter(n => n.gen === childGen);
 
           children.forEach(child => {
-            if (child.hideLine) return;
+            if (child.hideLine) return; // Admin toggle putus garis untuk node ini
             if (child._renderX === undefined || child._renderY === undefined) return;
 
             const parentNode = getParentNode(child, parents);
             if (!parentNode || parentNode.hideLine) return;
             if (parentNode._renderX === undefined || parentNode._renderY === undefined) return;
 
-            ctx.beginPath();
-            ctx.moveTo(parentNode._renderX, parentNode._renderY);
-            ctx.lineTo(child._renderX, child._renderY);
-            ctx.strokeStyle = child.claimed ? `${q.color}cc` : `${q.color}55`;
-            ctx.lineWidth = child.claimed ? 2 : 1.4;
-            ctx.stroke();
+            const isHighlighted = activeLineageIds.has(child.id) && activeLineageIds.has(parentNode.id);
+
+            ctx.save();
+
+            const fromX = parentNode._renderX;
+            const fromY = parentNode._renderY;
+            const toX = child._renderX;
+            const toY = child._renderY;
+
+            if (lineCurveStyle === 'straight') {
+              // Garis lurus konvensional
+              ctx.beginPath();
+              ctx.moveTo(fromX, fromY);
+              ctx.lineTo(toX, toY);
+            } else {
+              // GARIS RASI BINTANG MELENGKUNG ALAMI (Cubic Bezier Mengikuti Aliran Orbit)
+              ctx.beginPath();
+              ctx.moveTo(fromX, fromY);
+
+              const fromR = parentNode._radius || 0;
+              const toR = child._radius || 100;
+              const fromAngle = parentNode._angle || 0;
+              const toAngle = child._angle || 0;
+
+              if (fromR < 10) {
+                // Dari Uyut Pusat (R=0) ke Kakek: lengkungan radial lembut
+                const midR = toR * 0.55;
+                const cpX = q.center.x + midR * Math.cos(toAngle);
+                const cpY = q.center.y + midR * Math.sin(toAngle);
+                ctx.quadraticCurveTo(cpX, cpY, toX, toY);
+              } else {
+                // Antar Cincin Orbit: Cubic Bezier radial alami
+                const midR = (fromR + toR) * 0.5;
+                const cp1X = q.center.x + midR * Math.cos(fromAngle);
+                const cp1Y = q.center.y + midR * Math.sin(fromAngle);
+                const cp2X = q.center.x + midR * Math.cos(toAngle);
+                const cp2Y = q.center.y + midR * Math.sin(toAngle);
+                ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, toX, toY);
+              }
+            }
+
+            if (isHighlighted) {
+              // Sorotan Rasi Bintang Aktif: Jalur stardust bercahaya terang
+              ctx.shadowColor = "#38bdf8";
+              ctx.shadowBlur = 12;
+              ctx.strokeStyle = "#38bdf8";
+              ctx.lineWidth = 3.5;
+              ctx.stroke();
+
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 1.6;
+              ctx.stroke();
+            } else {
+              // Garis Rasi Bintang Reguler: Pendar kosmik lembut
+              ctx.shadowColor = q.color;
+              ctx.shadowBlur = child.claimed ? 6 : 2;
+              ctx.strokeStyle = child.claimed ? `${q.color}dd` : `${q.color}45`;
+              ctx.lineWidth = child.claimed ? 2.2 : 1.3;
+              ctx.stroke();
+            }
+
+            ctx.restore();
           });
         };
 
+        // Gambar bertingkat dari Uyut -> Kakek -> Ayah -> User -> Anak -> Cucu -> Cicit
         drawHierarchyStep(-3, -2);
         drawHierarchyStep(-2, -1);
         drawHierarchyStep(-1, 0);
@@ -757,18 +853,18 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     const userNodes = familyTree.nodes.filter(n => n.gen === 0 && (n.isUser || n.name.includes("User")));
     if (userNodes.length > 0) {
       ctx.beginPath();
-      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
       ctx.fillStyle = "#38bdf833";
       ctx.fill();
       ctx.strokeStyle = "#38bdf888";
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = 1.8;
       ctx.stroke();
 
       ctx.save();
       ctx.font = "bold 9px sans-serif";
       ctx.fillStyle = "#38bdf8";
       ctx.textAlign = "center";
-      ctx.fillText("POROS KELUARGA (GEN 0)", 0, -18);
+      ctx.fillText("POROS KELUARGA (GEN 0)", 0, -20);
       ctx.restore();
 
       userNodes.forEach(un => {
@@ -786,7 +882,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     }
 
     // =========================================================
-    // 4. NODES ANGGOTA KELUARGA & PASANGAN BERDAMPINGAN
+    // 4. BINTANG-BINTANG ANGGOTA KELUARGA & PASANGAN BERDAMPINGAN
     // =========================================================
     familyTree.nodes.forEach(node => {
       if (node._renderX === undefined || node._renderY === undefined) return;
@@ -799,7 +895,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const isAnak = node.gen === 1;
       const isCucu = node.gen === 2;
       const isCicit = node.gen === 3;
-      const isBeingMoved = dragRef.current.movingNodeId === node.id;
+      const isHighlighted = activeLineageIds.has(node.id);
 
       let radius = 18;
       if (isUyut) radius = 25;
@@ -810,57 +906,73 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       else if (isCucu) radius = 16;
       else if (isCicit) radius = 15;
 
-      let nodeColor = "#334155";
-      let borderColor = "#0f172a";
+      let nodeColor = "#1e293b";
+      let borderColor = "#334155";
 
-      if (isBeingMoved) {
-        nodeColor = "#f59e0b";
-        borderColor = "#fef08a";
-      } else if (isUyut) {
-        nodeColor = "#eab308";
+      if (isUyut) {
+        nodeColor = "#ca8a04";
         borderColor = "#fef08a";
       } else if (isUserEgo) {
         nodeColor = "#0284c7";
         borderColor = "#38bdf8";
       } else if (isUserSaudara) {
-        nodeColor = node.claimed ? "#0d9488" : "#334155";
+        nodeColor = node.claimed ? "#0d9488" : "#1e293b";
         borderColor = node.claimed ? "#2dd4bf" : "#64748b";
       } else if (node.claimed) {
-        nodeColor = "#10b981";
+        nodeColor = "#059669";
         borderColor = "#6ee7b7";
       }
 
-      // Draw Main Node Circle
+      // Aura pendar bintang saat disorot / terpilih
+      if (isHighlighted) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(node._renderX, node._renderY, radius + 7, 0, Math.PI * 2);
+        ctx.fillStyle = isUserEgo ? "#38bdf833" : "#fef08a33";
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Lingkaran Inti Bintang (Star Core)
       ctx.beginPath();
       ctx.arc(node._renderX, node._renderY, radius, 0, Math.PI * 2);
       ctx.fillStyle = nodeColor;
       ctx.fill();
       ctx.strokeStyle = borderColor;
-      ctx.lineWidth = isUyut || isUserEgo || isBeingMoved ? 3.5 : 2;
+      ctx.lineWidth = isUyut || isUserEgo ? 3.5 : 2.2;
       ctx.stroke();
 
-      // Draw Node Icon & Text
+      // Ikon Bintang di Tengah
       ctx.save();
       ctx.translate(node._renderX, node._renderY);
 
       let icon = "?";
-      if (isBeingMoved) icon = "✋";
-      else if (isUyut) icon = "👑";
+      if (isUyut) icon = "👑";
       else if (isUserEgo) icon = "👤";
       else if (isUserSaudara) icon = node.relationType === 'kakak' ? "🔺" : (node.relationType === 'adik' ? "🔻" : "👥");
-      else if (node.claimed) icon = "✓";
+      else if (node.claimed) icon = "✦";
 
       ctx.font = isUyut || isUserEgo ? "bold 12px sans-serif" : "11px sans-serif";
-      ctx.fillStyle = isUyut || isBeingMoved ? "#0f172a" : "#ffffff";
+      ctx.fillStyle = isUyut ? "#0f172a" : "#ffffff";
       ctx.textAlign = "center";
       ctx.fillText(icon, 0, 4);
 
-      // Label Nama
-      ctx.font = isUserEgo ? "bold 12px sans-serif" : "bold 11px sans-serif";
-      ctx.fillStyle = isUserEgo ? "#38bdf8" : "#f8fafc";
-      ctx.fillText(node.name, 0, radius + 13);
+      // KAPSUL LABEL NAMA ANTI-TUMPANG TINDIH (Sleek dark backdrop pill)
+      ctx.font = isUserEgo ? "bold 11px sans-serif" : "bold 10px sans-serif";
+      const nameWidth = ctx.measureText(node.name).width;
 
-      // Label Urutan & Orbit
+      ctx.fillStyle = "#070b14ea";
+      ctx.beginPath();
+      ctx.roundRect(-nameWidth / 2 - 6, radius + 3, nameWidth + 12, 17, 5);
+      ctx.fill();
+      ctx.strokeStyle = isUserEgo ? "#38bdf888" : "#33415588";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = isUserEgo ? "#38bdf8" : "#f8fafc";
+      ctx.fillText(node.name, 0, radius + 15);
+
+      // Sub-label Urutan & Orbit
       let orbitLabel = "";
       if (isUyut) orbitLabel = "Pusat (Uyut)";
       else if (isKakek) orbitLabel = "Orbit 1 (Kakek)";
@@ -872,14 +984,17 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
       ctx.font = "9px sans-serif";
       ctx.fillStyle = isUserEgo ? "#93c5fd" : (isUserSaudara ? "#2dd4bf" : "#94a3b8");
-      ctx.fillText(`${node.order} • ${orbitLabel}`, 0, radius + 25);
+      ctx.fillText(`${node.order} • ${orbitLabel}`, 0, radius + 31);
 
-      if (node.hideLine) {
+      if (node.customAngle !== undefined) {
+        ctx.fillStyle = "#818cf8";
+        ctx.fillText("(Posisi Kustom)", 0, radius + 42);
+      } else if (node.hideLine) {
         ctx.fillStyle = "#f43f5e";
-        ctx.fillText("(Garis Terputus)", 0, radius + 36);
+        ctx.fillText("(Garis Terputus)", 0, radius + 42);
       } else if (!node.claimed && !isUyut) {
         ctx.fillStyle = "#f59e0b";
-        ctx.fillText("Belum Diklaim", 0, radius + 36);
+        ctx.fillText("Belum Diklaim", 0, radius + 42);
       }
 
       ctx.restore();
@@ -890,14 +1005,15 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       if (node.spouseName && node._spouseX !== undefined && node._spouseY !== undefined) {
         const spouseR = 19;
 
-        // Garis cincin cinta penghubung user & pasangan
+        // Garis cincin cinta melengkung penghubung user & pasangan
         ctx.beginPath();
         ctx.moveTo(node._renderX, node._renderY);
         ctx.lineTo(node._spouseX, node._spouseY);
-        ctx.strokeStyle = "#f43f5e99";
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#f43f5ecc";
+        ctx.lineWidth = 2.8;
         ctx.stroke();
 
+        // Icon cincin di tengah ikatan
         const midX = (node._renderX + node._spouseX) / 2;
         const midY = (node._renderY + node._spouseY) / 2;
         ctx.save();
@@ -909,12 +1025,13 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         // Lingkaran Pasangan (Warna Rose Pink Kontras & Beda Warna)
         ctx.beginPath();
         ctx.arc(node._spouseX, node._spouseY, spouseR, 0, Math.PI * 2);
-        ctx.fillStyle = "#e11d48";
+        ctx.fillStyle = "#be123c";
         ctx.fill();
         ctx.strokeStyle = "#fda4af";
         ctx.lineWidth = 2.8;
         ctx.stroke();
 
+        // Text Pasangan dengan Kapsul Anti-Tumpang Tindih
         ctx.save();
         ctx.translate(node._spouseX, node._spouseY);
 
@@ -923,13 +1040,23 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         ctx.textAlign = "center";
         ctx.fillText("💍", 0, 4);
 
-        ctx.font = "bold 11px sans-serif";
+        ctx.font = "bold 10px sans-serif";
+        const spouseTextWidth = ctx.measureText(node.spouseName).width;
+
+        ctx.fillStyle = "#070b14ea";
+        ctx.beginPath();
+        ctx.roundRect(-spouseTextWidth / 2 - 6, spouseR + 3, spouseTextWidth + 12, 17, 5);
+        ctx.fill();
+        ctx.strokeStyle = "#fda4af88";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
         ctx.fillStyle = "#fda4af";
-        ctx.fillText(node.spouseName, 0, spouseR + 13);
+        ctx.fillText(node.spouseName, 0, spouseR + 15);
 
         ctx.font = "9px sans-serif";
         ctx.fillStyle = "#f43f5e";
-        ctx.fillText("Pasangan (Berdampingan)", 0, spouseR + 24);
+        ctx.fillText("Pasangan (Berdampingan)", 0, spouseR + 29);
 
         ctx.restore();
       }
@@ -953,14 +1080,14 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [familyTree, showConnectingLines, quadrantRotations]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle]);
 
   useEffect(() => {
     renderCanvas();
-  }, [familyTree, showConnectingLines, quadrantRotations]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode]);
 
   // -------------------------------------------------------------
-  // INTERACTIVE MOUSE / TOUCH EVENTS (PAN & MANUAL NODE DRAG-AND-MOVE)
+  // MOUSE & TOUCH GESTURES (DRAGGING CAMERA ATAU DRAGGING BINTANG DI ORBIT)
   // -------------------------------------------------------------
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -973,25 +1100,25 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     const worldX = (clickX - canvas.width / 2 - camX) / zoom;
     const worldY = (clickY - canvas.height / 2 - camY) / zoom;
 
-    // Jika dalam Mode Geser Node atau klik langsung pada node
-    if (interactionMode === 'moveNode') {
-      for (const node of familyTree.nodes) {
-        if (node._renderX !== undefined && node._renderY !== undefined) {
-          const dx = worldX - node._renderX;
-          const dy = worldY - node._renderY;
-          const radius = node.gen === -3 || node.isUser ? 28 : 22;
-          if (Math.sqrt(dx * dx + dy * dy) <= radius + 8) {
-            dragRef.current.movingNodeId = node.id;
-            dragRef.current.movingNodeInitialAngle = node._angle || 0;
-            dragRef.current.hasMoved = false;
-            return;
-          }
+    // Cek apakah mouse menekan salah satu node untuk di-drag sepanjang orbit
+    for (const node of familyTree.nodes) {
+      if (node.gen > -3 && node._renderX !== undefined && node._renderY !== undefined) {
+        const dx = worldX - node._renderX;
+        const dy = worldY - node._renderY;
+        if (Math.sqrt(dx * dx + dy * dy) <= 24) {
+          nodeDragRef.current = {
+            isDraggingNode: true,
+            nodeId: node.id,
+            quadrant: node.quadrant,
+            hasDragged: false
+          };
+          return;
         }
       }
     }
 
-    // Default: Pan / Drag Camera
-    dragRef.current.isDragging = true;
+    // Default: Drag Kamera / Pan
+    dragRef.current.isDraggingCamera = true;
     dragRef.current.hasMoved = false;
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
@@ -1001,9 +1128,9 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 1. Sedang Menggeser Node di Orbit
-    if (dragRef.current.movingNodeId) {
-      dragRef.current.hasMoved = true;
+    // 1. Interactive Node Dragging (Menggeser bintang bebas sepanjang garis orbit)
+    if (nodeDragRef.current.isDraggingNode && nodeDragRef.current.nodeId) {
+      nodeDragRef.current.hasDragged = true;
       const rect = canvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
@@ -1012,43 +1139,19 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const worldX = (clickX - canvas.width / 2 - camX) / zoom;
       const worldY = (clickY - canvas.height / 2 - camY) / zoom;
 
-      const targetNode = familyTree.nodes.find(n => n.id === dragRef.current.movingNodeId);
-      if (!targetNode) return;
-
-      const qCenter = familyTree.quadrants[targetNode.quadrant]?.center || { x: 0, y: 0 };
-      const currentMouseAngle = Math.atan2(worldY - qCenter.y, worldX - qCenter.x);
-      const quadRot = quadrantRotations[targetNode.quadrant] || 0;
-
-      const deltaAngle = currentMouseAngle - (targetNode._angle || currentMouseAngle);
-
-      // Perbarui sudut node yang digeser
-      setFamilyTree(prev => {
-        const nextNodes = prev.nodes.map(n => {
-          if (n.id === targetNode.id) {
-            return {
-              ...n,
-              customAngle: currentMouseAngle - quadRot
-            };
-          }
-          // Jika opsi geser beserta keturunan aktif, geser anak-anaknya juga
-          if (cascadeSubtreeMove && n.parentId === targetNode.id) {
-            const childCurrentAngle = n._angle !== undefined ? n._angle : currentMouseAngle;
-            return {
-              ...n,
-              customAngle: childCurrentAngle + deltaAngle - quadRot
-            };
-          }
-          return n;
-        });
-        return { ...prev, nodes: nextNodes };
-      });
-
-      renderCanvas();
+      const targetId = nodeDragRef.current.nodeId;
+      const targetNode = familyTree.nodes.find(n => n.id === targetId);
+      if (targetNode) {
+        const q = familyTree.quadrants[targetNode.quadrant || 'Q1'];
+        const newAngle = Math.atan2(worldY - q.center.y, worldX - q.center.x);
+        targetNode.customAngle = newAngle;
+        renderCanvas();
+      }
       return;
     }
 
-    // 2. Sedang Pan Kamera
-    if (!dragRef.current.isDragging) return;
+    // 2. Camera Panning
+    if (!dragRef.current.isDraggingCamera) return;
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
@@ -1062,15 +1165,19 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   };
 
   const handleMouseUp = () => {
-    if (dragRef.current.movingNodeId) {
-      const movedNode = familyTree.nodes.find(n => n.id === dragRef.current.movingNodeId);
-      if (movedNode) {
-        addLog('Geser Node', `Posisi ${movedNode.name} digeser secara manual di orbit.`);
+    // Selesai drag bintang di orbit
+    if (nodeDragRef.current.isDraggingNode) {
+      if (nodeDragRef.current.hasDragged) {
+        setFamilyTree({ ...familyTree });
+        addLog('Ubah Posisi Bintang', 'Posisi bintang di garis orbit disesuaikan secara visual.');
+        showNotification?.('Posisi bintang di rasi silsilah berhasil disimpan!');
       }
-      dragRef.current.movingNodeId = null;
-      renderCanvas();
+      nodeDragRef.current.isDraggingNode = false;
+      nodeDragRef.current.nodeId = null;
+      return;
     }
-    dragRef.current.isDragging = false;
+
+    dragRef.current.isDraggingCamera = false;
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1086,12 +1193,12 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (e.touches.length === 1) {
-      dragRef.current.isDragging = true;
+      dragRef.current.isDraggingCamera = true;
       dragRef.current.hasMoved = false;
       dragRef.current.startX = e.touches[0].clientX;
       dragRef.current.startY = e.touches[0].clientY;
     } else if (e.touches.length === 2) {
-      dragRef.current.isDragging = false;
+      dragRef.current.isDraggingCamera = false;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       dragRef.current.initialPinchDist = Math.sqrt(dx * dx + dy * dy);
@@ -1099,7 +1206,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (e.touches.length === 1 && dragRef.current.isDragging) {
+    if (e.touches.length === 1 && dragRef.current.isDraggingCamera) {
       const dx = e.touches[0].clientX - dragRef.current.startX;
       const dy = e.touches[0].clientY - dragRef.current.startY;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
@@ -1126,13 +1233,13 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   };
 
   const handleTouchEnd = () => {
-    dragRef.current.isDragging = false;
+    dragRef.current.isDraggingCamera = false;
     dragRef.current.initialPinchDist = 0;
   };
 
-  // Node Click: Admin Modal vs User Claim Modal
+  // Node Click: Admin Modal vs User Claim/Keluarga Inti Modal
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (dragRef.current.hasMoved) return;
+    if (dragRef.current.hasMoved || nodeDragRef.current.hasDragged) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1146,6 +1253,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
     // Cek apakah klik pada node atau pasangan
     for (const node of familyTree.nodes) {
+      // 1. Cek klik pada Node Utama
       if (node._renderX !== undefined && node._renderY !== undefined) {
         const dx = worldX - node._renderX;
         const dy = worldY - node._renderY;
@@ -1156,6 +1264,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         }
       }
 
+      // 2. Cek klik pada Pasangan Berdampingan
       if (node._spouseX !== undefined && node._spouseY !== undefined) {
         const dx = worldX - node._spouseX;
         const dy = worldY - node._spouseY;
@@ -1165,6 +1274,9 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         }
       }
     }
+
+    // Klik pada area kosong: batalkan sorotan
+    setSelectedNode(null);
   };
 
   const openNodeModal = (node: OrbitNode) => {
@@ -1175,6 +1287,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     if (isAdminMode) {
       setShowAdminEditModal(true);
     } else {
+      // User Mode: Modal Klaim & Keluarga Inti
       setClaimNameInput(node.name);
       setClaimSpouseInput(node.spouseName || '');
       setClaimNotesInput(node.notes || '');
@@ -1218,6 +1331,20 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     }
   };
 
+  // Nudge sudut orbit secara presisi
+  const handleNudgeAngle = (node: OrbitNode, delta: number) => {
+    const current = node.customAngle !== undefined ? node.customAngle : (node._angle || 0);
+    const updated = current + delta;
+    const updatedNode = { ...node, customAngle: updated };
+    setSelectedNode(updatedNode);
+    setFamilyTree(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => (n.id === node.id ? updatedNode : n))
+    }));
+    showNotification?.(`Posisi ${node.name} digeser di garis orbit rasi bintang.`);
+    renderCanvas();
+  };
+
   // -------------------------------------------------------------
   // USER MODE: KLAIM & KELUARGA INTI (PASANGAN & ANAK)
   // -------------------------------------------------------------
@@ -1242,7 +1369,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
     addLog('Klaim User', `Profil ${claimNameInput || selectedNode.name} diklaim oleh User. Pasangan: ${claimSpouseInput || 'Tidak diisi'}`);
     setShowUserClaimModal(false);
-    setSelectedNode(null);
     showNotification?.('Profil & Data Keluarga Inti (Pasangan) berhasil disimpan!');
     renderCanvas();
   };
@@ -1279,7 +1405,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
     addLog('Admin Edit Mutlak', `Admin memperbarui ${selectedNode.name} [Induk: ${finalParentId || 'Auto'}, Garis: ${selectedNode.hideLine ? 'Putus' : 'Aktif'}]`);
     setShowAdminEditModal(false);
-    setSelectedNode(null);
     showNotification?.('Perubahan silsilah mutlak berhasil disimpan!');
     renderCanvas();
   };
@@ -1397,7 +1522,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       order: "Pusat Kuadran (1)",
       quadrant: batchQuadrant,
       claimed: true,
-      role: "Uyut Utama (Pusat Kuadran)",
+      role: "Uyut Utama (Pusat Bintang)",
       hideLine: !batchLineEnabled
     });
 
@@ -1420,7 +1545,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       });
     });
 
-    // 2. Ayah / Paman / Bibi (Orbit 2)
+    // 2. Ayah / Paman / Bibi (Orbit 2) - Dihubungkan ke Kakek No. 2
     const primaryKakekId = kakekIds[1] || kakekIds[0] || uyutId;
     const ayahNames = batchAyah.split(',').map(n => n.trim()).filter(Boolean);
     const ayahIds: string[] = [];
@@ -1440,7 +1565,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       });
     });
 
-    // 3. User & Saudara (Orbit 3)
+    // 3. User & Saudara (Orbit 3) - Dihubungkan ke Ayah No. 2
     const primaryAyahId = ayahIds[1] || ayahIds[0] || primaryKakekId;
     const userSaudaraNames = batchUserSaudara.split(',').map(n => n.trim()).filter(Boolean);
     let userNodeId = '';
@@ -1465,7 +1590,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       });
     });
 
-    // 4. Anak (Orbit 4)
+    // 4. Anak (Orbit 4) - Dihubungkan ke User
     const anakTargetParent = userNodeId || primaryAyahId;
     const anakNames = batchAnak.split(',').map(n => n.trim()).filter(Boolean);
     const anakIds: string[] = [];
@@ -1523,7 +1648,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       });
     });
 
-    addLog('Batch Admin Mutlak', `Admin memperbarui garis silsilah mutlak kuadran ${batchQuadrant}. Garis penghubung: ${batchLineEnabled ? 'Aktif' : 'Non-aktif'}.`);
+    addLog('Batch Admin Mutlak', `Admin memperbarui garis rasi bintang kuadran ${batchQuadrant}.`);
 
     setFamilyTree({
       ...familyTree,
@@ -1531,23 +1656,22 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     });
 
     setShowBatchModal(false);
-    showNotification?.(`🚀 Silsilah mutlak ${batchQuadrant} berhasil diperbarui & auto-tampil di orbit!`);
+    showNotification?.(`🚀 Silsilah ${batchQuadrant} berhasil diperbarui di rasi bintang!`);
     renderCanvas();
   };
 
+  // Opsi Calon Orang Tua (Orbit N-1) untuk Modal Admin
   const candidateParents = selectedNode
     ? familyTree.nodes.filter(n => n.quadrant === selectedNode.quadrant && n.gen === selectedNode.gen - 1)
     : [];
 
-  const currentQuadRotDeg = Math.round(((quadrantRotations[activeRotationQuadrant] || 0) * 180) / Math.PI) % 360;
-
   return (
-    <div className="w-full h-full relative flex flex-col bg-[#0b0f19] text-slate-100 overflow-hidden font-sans select-none">
+    <div className="w-full h-full relative flex flex-col bg-[#070b14] text-slate-100 overflow-hidden font-sans select-none">
       {/* ------------------------------------------------------------- */}
       {/* HEADER / TOP BAR                                              */}
       {/* ------------------------------------------------------------- */}
-      <header className="absolute top-0 left-0 right-0 z-20 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-3.5 py-2.5 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-2">
+      <header className="absolute top-0 left-0 right-0 z-20 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-3 py-2 flex items-center justify-between shadow-lg gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {onBackToLeluhurQu && (
             <button
               onClick={onBackToLeluhurQu}
@@ -1563,67 +1687,70 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="font-bold text-xs sm:text-sm leading-none text-white">Leluhur<span className="text-emerald-400">Qu</span></h1>
-              <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-400/40 px-1 py-0.2 rounded font-mono font-bold">
-                OrbitQu
+              <span className="text-[9px] bg-sky-950 text-sky-400 border border-sky-400/40 px-1 py-0.2 rounded font-mono font-bold">
+                Rasi Bintang
               </span>
             </div>
-            <p className="text-[9px] text-slate-400 truncate max-w-[150px] sm:max-w-none">
-              Hierarki Mutlak: 1 Uyut $\rightarrow$ 3 Kakek $\rightarrow$ 10 Ayah $\rightarrow$ 6 User/Saudara $\rightarrow$ 3 Anak
+            <p className="text-[9px] text-slate-400 truncate max-w-[130px] sm:max-w-none">
+              Anti-Silang &amp; Anti-Bersebrangan • Garis Melengkung Fleksibel
             </p>
           </div>
         </div>
 
-        {/* Center Mode Switch: Admin Trah vs User Warga */}
-        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+        {/* CONTROLS CENTER: POLA SEBARAN (KIPAS KOSMIK) & GAYA GARIS MELENGKUNG */}
+        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 shrink-0">
+          {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
           <button
             onClick={() => {
-              setIsAdminMode(true);
-              showNotification?.('🛡️ Beralih ke Mode Admin Trah (Pengelola Silsilah Mutlak)');
+              const next = orbitSpreadMode === 'fan' ? 'circle' : 'fan';
+              setOrbitSpreadMode(next);
+              showNotification?.(next === 'fan' ? '🌌 Pola Kipas Kosmik aktif (Percabangan melebar keluar tanpa menyebrang).' : '🪐 Pola Melingkar 360° aktif.');
             }}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
-              isAdminMode ? 'bg-amber-600 text-slate-950 shadow-xs' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
+              orbitSpreadMode === 'fan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
             }`}
+            title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360"
+          >
+            <Compass className="w-3 h-3 text-indigo-300" />
+            <span className="hidden md:inline">{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik (Anti-Silang)' : 'Pola: Melingkar 360°'}</span>
+            <span className="md:hidden">{orbitSpreadMode === 'fan' ? 'Kipas' : '360°'}</span>
+          </button>
+
+          {/* Gaya Garis Rasi Bintang Melengkung vs Lurus */}
+          <button
+            onClick={() => {
+              const next = lineCurveStyle === 'curved' ? 'straight' : 'curved';
+              setLineCurveStyle(next);
+              showNotification?.(next === 'curved' ? '✨ Garis rasi bintang melengkung halus aktif.' : '📏 Garis lurus konvensional aktif.');
+            }}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
+              lineCurveStyle === 'curved' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+            }`}
+            title="Klik untuk ubah gaya garis: Rasi Melengkung vs Lurus"
+          >
+            <Sparkles className="w-3 h-3 text-sky-300" />
+            <span className="hidden md:inline">{lineCurveStyle === 'curved' ? 'Garis: Rasi Melengkung' : 'Garis: Lurus'}</span>
+            <span className="md:hidden">{lineCurveStyle === 'curved' ? 'Lengkung' : 'Lurus'}</span>
+          </button>
+
+          {/* Mode Switch: Admin Trah vs User Warga */}
+          <button
+            onClick={() => {
+              setIsAdminMode(!isAdminMode);
+              showNotification?.(!isAdminMode ? '🛡️ Mode Admin Trah Aktif' : '👤 Mode User Warga Aktif');
+            }}
+            className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
+              isAdminMode ? 'bg-amber-600 text-slate-950' : 'bg-slate-800 text-slate-300'
+            }`}
+            title="Beralih peran: Admin (Pengelola Silsilah Mutlak) vs User (Klaim & Keluarga Inti)"
           >
             <Shield className="w-3 h-3" />
-            <span>Admin</span>
-          </button>
-          <button
-            onClick={() => {
-              setIsAdminMode(false);
-              showNotification?.('👤 Beralih ke Mode User Warga (Klaim & Keluarga Inti)');
-            }}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
-              !isAdminMode ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users className="w-3 h-3" />
-            <span>User</span>
+            <span>{isAdminMode ? 'Admin' : 'User'}</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* TOMBOL UTAMA: AUTO PROPORSIONAL (RAPIKAN POSISI SEARAH ORTU) */}
-          <button
-            onClick={handleAutoProportional}
-            className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 text-[11px] font-extrabold px-3 py-1.5 rounded-lg transition shadow-md flex items-center gap-1.5"
-            title="Rapikan posisi anak-anak secara langsung agar memancar sejajar searah di luar orang tua (tidak bersebrangan)"
-          >
-            <Sparkles className="w-3.5 h-3.5 fill-current text-slate-950 animate-pulse" />
-            <span className="hidden sm:inline">Auto Proporsional</span>
-            <span className="sm:hidden">Rapikan</span>
-          </button>
-
-          {/* Batch Modal Button (Admin Mutlak) */}
-          <button
-            onClick={handleOpenBatchModal}
-            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 border border-emerald-500/40 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1"
-            title="Kelola & Edit Kerangka Silsilah Mutlak (Batch)"
-          >
-            <Zap className="w-3.5 h-3.5 fill-current" />
-            <span className="hidden sm:inline">Batch</span>
-          </button>
-
-          {/* Toggle Garis Konektor (Admin) */}
+        {/* ACTION BUTTONS: BATCH, GARIS ON/OFF, RESET */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {isAdminMode && (
             <button
               onClick={() => {
@@ -1638,147 +1765,47 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               title="Admin: Tampilkan atau Hapus/Sembunyikan Garis Hubung"
             >
               {showConnectingLines ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span className="hidden lg:inline">{showConnectingLines ? 'Garis: On' : 'Garis: Off'}</span>
             </button>
           )}
 
           <button
+            onClick={handleOpenBatchModal}
+            className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1"
+            title="Kelola & Edit Kerangka Silsilah Mutlak di Batch"
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden sm:inline">Input / Edit Batch</span>
+            <span className="sm:hidden">Batch</span>
+          </button>
+
+          <button
             onClick={handleResetCleanData}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 px-2 py-1.5 rounded-lg transition active:scale-95 flex items-center gap-1"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 p-1.5 sm:px-2 rounded-lg transition active:scale-95 flex items-center gap-1"
             title="Reset Contoh Nyata (1 Uyut - 3 Kakek - 10 Ayah - 6 User - 3 Anak)"
           >
-            <RotateCcw className="w-3 h-3 text-emerald-400" />
-            <span className="hidden sm:inline">Reset</span>
+            <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">Reset Nyata</span>
+          </button>
+
+          <button
+            onClick={handleClearAllData}
+            className="bg-rose-950/40 hover:bg-rose-900 text-rose-300 text-[11px] border border-rose-800/40 p-1.5 sm:px-2 rounded-lg transition active:scale-95 flex items-center gap-1"
+            title="Bersihkan Semua Data / Mulai Lembar Bersih"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">Bersihkan</span>
           </button>
 
           <button
             onClick={() => setShowLedgerModal(true)}
-            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-[11px] border border-slate-700 px-2 py-1.5 rounded-lg transition text-slate-200 flex items-center gap-1"
+            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-[11px] border border-slate-700 p-1.5 sm:px-2 rounded-lg transition text-slate-200 flex items-center gap-1"
           >
             <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">Buku Besar</span>
           </button>
         </div>
       </header>
-
-      {/* ------------------------------------------------------------- */}
-      {/* FLOATING ACTION TOOLBAR: ROTASI / PUTAR / GESER MANUAL / AUTO PROPORSIONAL */}
-      {/* ------------------------------------------------------------- */}
-      <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center justify-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-slate-700/80 shadow-2xl max-w-[95vw]">
-        {/* Mode Drag Geser Node */}
-        <button
-          onClick={() => {
-            const nextMode = interactionMode === 'moveNode' ? 'pan' : 'moveNode';
-            setInteractionMode(nextMode);
-            showNotification?.(nextMode === 'moveNode'
-              ? '✋ Mode Geser Node Aktif: Klik & seret node mana pun di kanvas untuk memindahkannya di orbit!'
-              : '🖱️ Mode Navigasi Aktif: Kanvas dapat digeser bebas.');
-          }}
-          className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 ${
-            interactionMode === 'moveNode'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400'
-              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-          }`}
-          title="Mode Geser Node Manual: Seret node secara langsung di sepanjang orbit"
-        >
-          <Move className="w-3.5 h-3.5" />
-          <span>{interactionMode === 'moveNode' ? 'Mode Geser: ON' : 'Geser Node'}</span>
-        </button>
-
-        {/* Rotasi Cepat Kuadran */}
-        <div className="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-xl border border-slate-700 text-xs">
-          <select
-            value={activeRotationQuadrant}
-            onChange={e => setActiveRotationQuadrant(e.target.value as any)}
-            className="bg-transparent text-emerald-400 font-bold px-1 py-0.5 text-[11px] focus:outline-none"
-            title="Pilih Kuadran untuk Diputar"
-          >
-            <option value="Q1" className="bg-slate-900 text-white">Putar Q1 (Ayah)</option>
-            <option value="Q2" className="bg-slate-900 text-white">Putar Q2 (Ibu)</option>
-            <option value="Q3" className="bg-slate-900 text-white">Putar Q3 (Besan L)</option>
-            <option value="Q4" className="bg-slate-900 text-white">Putar Q4 (Besan P)</option>
-          </select>
-
-          <button
-            onClick={() => handleRotateQuadrant(-15)}
-            className="p-1 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition active:scale-95"
-            title="Putar Kiri (-15°)"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-
-          <span className="text-[10px] font-mono px-1 text-slate-400">
-            {currentQuadRotDeg}°
-          </span>
-
-          <button
-            onClick={() => handleRotateQuadrant(15)}
-            className="p-1 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition active:scale-95"
-            title="Putar Kanan (+15°)"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={() => setShowRotationControl(!showRotationControl)}
-            className={`p-1 rounded-lg text-slate-300 hover:text-white transition active:scale-95 ${showRotationControl ? 'bg-emerald-600 text-slate-950' : 'hover:bg-slate-700'}`}
-            title="Buka Slider Rotasi Halus"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Tombol Rapikan Auto Proporsional Cepat */}
-        <button
-          onClick={handleAutoProportional}
-          className="bg-emerald-600/80 hover:bg-emerald-600 active:scale-95 text-white text-xs font-bold px-2.5 py-1 rounded-xl transition flex items-center gap-1 shadow-xs"
-          title="Auto Rapikan Posisi: Pastikan seluruh anak berada tepat di luar ortunya"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>Auto Rapikan</span>
-        </button>
-      </div>
-
-      {/* POPUP SLIDER ROTASI HALUS */}
-      {showRotationControl && (
-        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-20 bg-slate-900/95 backdrop-blur-md p-3 rounded-2xl border border-slate-700 shadow-2xl flex flex-col gap-2 w-72 text-xs">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
-            <span className="font-bold text-emerald-400 flex items-center gap-1.5">
-              <Compass className="w-4 h-4" />
-              Rotasi Halus Kuadran {activeRotationQuadrant}
-            </span>
-            <button onClick={() => setShowRotationControl(false)} className="text-slate-400 hover:text-white">✕</button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400">-180°</span>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="5"
-              value={currentQuadRotDeg > 180 ? currentQuadRotDeg - 360 : currentQuadRotDeg}
-              onChange={e => {
-                const deg = parseInt(e.target.value, 10);
-                const rad = (deg * Math.PI) / 180;
-                setQuadrantRotations(prev => ({
-                  ...prev,
-                  [activeRotationQuadrant]: rad
-                }));
-                renderCanvas();
-              }}
-              className="flex-1 accent-emerald-500 cursor-pointer"
-            />
-            <span className="text-[10px] text-slate-400">+180°</span>
-          </div>
-          <div className="flex justify-between items-center pt-1">
-            <span className="text-[11px] font-mono font-bold text-white">Sudut: {currentQuadRotDeg}°</span>
-            <button
-              onClick={handleResetRotation}
-              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-[10px] text-slate-300"
-            >
-              Reset 0°
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ------------------------------------------------------------- */}
       {/* CANVAS / INTERACTIVE MAP AREA                                  */}
@@ -1794,7 +1821,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           onTouchEnd={handleTouchEnd}
           onClick={handleCanvasClick}
           onWheel={handleWheel}
-          className={`w-full h-full block ${interactionMode === 'moveNode' ? 'cursor-move' : 'cursor-grab active:cursor-grabbing'}`}
+          className="w-full h-full block cursor-grab active:cursor-grabbing"
         />
 
         {/* FLOATING NAVIGATION (ZOOM, GPS) */}
@@ -1823,27 +1850,23 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           </button>
         </div>
 
-        {/* LEGEND & PETUNJUK KUADRAN */}
-        <div className="absolute bottom-16 sm:bottom-6 left-3 sm:left-6 z-20 bg-slate-900/90 backdrop-blur p-2.5 sm:p-3 rounded-xl border border-slate-800 text-xs flex flex-col gap-1.5 shadow-xl max-w-[290px] sm:max-w-sm">
+        {/* LEGEND & PETUNJUK RASI BINTANG KOSMIK */}
+        <div className="absolute bottom-16 sm:bottom-6 left-3 sm:left-6 z-20 bg-slate-900/90 backdrop-blur p-2.5 sm:p-3 rounded-xl border border-slate-800 text-xs flex flex-col gap-1.5 shadow-xl max-w-[310px] sm:max-w-sm">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-slate-200 text-[11px] flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
-              Sistem Silsilah Orbit Bersih:
+              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+              Solusi Rasi Bintang Anti-Silang:
             </span>
             <span className="text-[10px] text-slate-400 font-mono">{zoomLevelDisplay}%</span>
           </div>
-          <div className="text-[10px] text-amber-300 bg-amber-950/40 p-1.5 rounded-lg border border-amber-500/30 font-medium">
-            👑 <b>Pusat:</b> 1 Uyut $\rightarrow$ <b>Orbit 1:</b> 3 Kakek $\rightarrow$ <b>Orbit 2:</b> 10 Ayah (Kakek B)
+          <div className="text-[10px] text-sky-300 bg-sky-950/40 p-1.5 rounded-lg border border-sky-500/30 leading-relaxed">
+            ✨ <strong>Garis Melengkung:</strong> Mengikuti kelengkungan orbit radial, 100% bebas garis saling silang &amp; anti-bersebrangan.
           </div>
           <div className="text-[10px] text-slate-300 leading-relaxed">
-            <b className="text-sky-300">Orbit 3:</b> 6 User &amp; Saudara $\rightarrow$ <b className="text-pink-300">Pasangan Nempel</b> $\rightarrow$ <b className="text-emerald-300">Orbit 4:</b> 3 Anak
+            ✋ <strong>Fleksibel:</strong> Klik &amp; tahan pada bintang untuk menggeser posisinya bebas sepanjang lingkaran orbit!
           </div>
           <div className="text-[9px] text-slate-400 border-t border-slate-800 pt-1 flex items-center justify-between">
-            <span className={interactionMode === 'moveNode' ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
-              {interactionMode === 'moveNode'
-                ? '✋ Mode Geser Aktif: Seret node untuk memindahkannya di orbit'
-                : '💡 Gunakan "Auto Proporsional" jika ingin merapikan anak searah ortu'}
-            </span>
+            <span>Klik bintang mana pun untuk menyorot jalur nasabnya terang benderang.</span>
           </div>
         </div>
       </main>
@@ -1864,7 +1887,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                     Klaim &amp; Data Keluarga Inti
                   </h3>
                   <p className="text-[10px] text-slate-400">
-                    Posisi: <strong>{selectedNode.order}</strong> (Orbit {selectedNode.gen + 3})
+                    Bintang: <strong>{selectedNode.name}</strong> ({selectedNode.order})
                   </p>
                 </div>
               </div>
@@ -1906,13 +1929,57 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 </p>
               </div>
 
+              {/* Kontrol Fleksibel Geser Bintang di Orbit */}
+              <div className="p-3 bg-indigo-950/40 rounded-xl border border-indigo-500/40 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-indigo-300 font-bold text-xs flex items-center gap-1.5">
+                    <Move className="w-3.5 h-3.5 text-indigo-400" />
+                    Geser Posisi di Garis Orbit
+                  </label>
+                  {selectedNode.customAngle !== undefined && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const resetNode = { ...selectedNode, customAngle: undefined };
+                        setSelectedNode(resetNode);
+                        setFamilyTree(prev => ({
+                          ...prev,
+                          nodes: prev.nodes.map(n => n.id === selectedNode.id ? resetNode : n)
+                        }));
+                        showNotification?.('Posisi bintang dikembalikan ke susunan otomatis.');
+                        renderCanvas();
+                      }}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 underline"
+                    >
+                      Reset Otomatis
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeAngle(selectedNode, -0.15)}
+                    className="flex-1 py-1.5 px-2 bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/50 rounded-lg text-indigo-200 text-xs font-semibold active:scale-95 transition"
+                  >
+                    ◀ Geser Kiri
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeAngle(selectedNode, 0.15)}
+                    className="flex-1 py-1.5 px-2 bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/50 rounded-lg text-indigo-200 text-xs font-semibold active:scale-95 transition"
+                  >
+                    Geser Kanan ▶
+                  </button>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-slate-400 mb-1">Catatan Tambahan Keluarga Inti</label>
+                <label className="block text-slate-400 mb-1">Catatan Tambahan</label>
                 <input
                   type="text"
                   value={claimNotesInput}
                   onChange={e => setClaimNotesInput(e.target.value)}
-                  placeholder="Contoh: Tanggal pernikahan atau domisili"
+                  placeholder="Contoh: Tanggal pernikahan atau kontak"
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-sky-500"
                 />
               </div>
@@ -1953,7 +2020,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-amber-400 flex items-center gap-1.5">
-                    🛡️ Pengaturan Mutlak (Admin Trah)
+                    🛡️ Pengaturan Silsilah Mutlak (Admin)
                   </h3>
                   <span className="text-[10px] text-slate-400 font-mono">
                     ID: {selectedNode.id} • Kuadran {selectedNode.quadrant} • Orbit {selectedNode.gen + 3}
@@ -1963,7 +2030,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               <button
                 onClick={() => {
                   setShowAdminEditModal(false);
-                  setSelectedNode(null);
                 }}
                 className="text-slate-400 hover:text-slate-200 p-1"
               >
@@ -2042,55 +2108,46 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 />
               </div>
 
-              {/* Geser Posisi Sudut Orbit untuk Node Ini */}
-              <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col gap-2">
+              {/* Kontrol Fleksibel Geser Bintang di Orbit (Admin) */}
+              <div className="p-3 bg-indigo-950/40 rounded-xl border border-indigo-500/40 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-amber-400 flex items-center gap-1 text-[11px]">
-                    <Sliders className="w-3.5 h-3.5" />
-                    Geser Posisi Sudut di Orbit
+                  <label className="text-indigo-300 font-bold text-xs flex items-center gap-1.5">
+                    <Move className="w-3.5 h-3.5 text-indigo-400" />
+                    Atur Posisi Bintang di Garis Orbit
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedNode({ ...selectedNode, customAngle: undefined });
-                      showNotification?.('Posisi node disejajarkan kembali secara proporsional ke orang tua.');
-                    }}
-                    className="text-[10px] text-emerald-400 hover:underline"
-                  >
-                    ✨ Sejajarkan ke Ortu
-                  </button>
+                  {selectedNode.customAngle !== undefined && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const resetNode = { ...selectedNode, customAngle: undefined };
+                        setSelectedNode(resetNode);
+                        setFamilyTree(prev => ({
+                          ...prev,
+                          nodes: prev.nodes.map(n => n.id === selectedNode.id ? resetNode : n)
+                        }));
+                        showNotification?.('Posisi bintang dikembalikan ke susunan otomatis.');
+                        renderCanvas();
+                      }}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 underline"
+                    >
+                      Reset Otomatis
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const cur = selectedNode.customAngle || 0;
-                      setSelectedNode({ ...selectedNode, customAngle: cur - 0.1 });
-                    }}
-                    className="px-2 py-1 bg-slate-700 rounded text-slate-200"
-                    title="Geser -6°"
+                    onClick={() => handleNudgeAngle(selectedNode, -0.15)}
+                    className="flex-1 py-1.5 px-2 bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/50 rounded-lg text-indigo-200 text-xs font-semibold active:scale-95 transition"
                   >
-                    ⟲ -6°
+                    ◀ Geser Kiri
                   </button>
-                  <input
-                    type="range"
-                    min="-3.14"
-                    max="3.14"
-                    step="0.05"
-                    value={selectedNode.customAngle || 0}
-                    onChange={e => setSelectedNode({ ...selectedNode, customAngle: parseFloat(e.target.value) })}
-                    className="flex-1 accent-amber-500"
-                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      const cur = selectedNode.customAngle || 0;
-                      setSelectedNode({ ...selectedNode, customAngle: cur + 0.1 });
-                    }}
-                    className="px-2 py-1 bg-slate-700 rounded text-slate-200"
-                    title="Geser +6°"
+                    onClick={() => handleNudgeAngle(selectedNode, 0.15)}
+                    className="flex-1 py-1.5 px-2 bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-500/50 rounded-lg text-indigo-200 text-xs font-semibold active:scale-95 transition"
                   >
-                    ⟳ +6°
+                    Geser Kanan ▶
                   </button>
                 </div>
               </div>
@@ -2231,7 +2288,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
             <form onSubmit={handleSaveAddChild} className="flex flex-col gap-3 text-xs">
               <div className="p-2 bg-emerald-950/40 rounded-lg border border-emerald-500/30 text-[11px] text-emerald-200">
-                Anak akan otomatis ditempatkan di <strong>Orbit {Math.min(selectedNode.gen + 1, 3) + 3}</strong> memancar langsung searah di luar <strong>{selectedNode.name}</strong> tanpa bersebrangan.
+                Anak akan otomatis ditempatkan di <strong>Orbit {Math.min(selectedNode.gen + 1, 3) + 3}</strong> dalam kelompok induk <strong>{selectedNode.name}</strong> dengan garis melengkung anti-silang.
               </div>
 
               <div>
@@ -2323,17 +2380,17 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                   }}
                   className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
                 >
-                  <option value="Q1">Trah Ayah User (Kiri-Atas) • Biru</option>
-                  <option value="Q2">Trah Ibu User (Kanan-Atas) • Hijau</option>
-                  <option value="Q3">Trah Ayah Pasangan (Kiri-Bawah) • Merah</option>
-                  <option value="Q4">Trah Ibu Pasangan (Kanan-Bawah) • Ungu</option>
+                  <option value="Q1">Trah Ayah User (Kiri-Atas) • Biru Langit</option>
+                  <option value="Q2">Trah Ibu User (Kanan-Atas) • Zamrud Hijau</option>
+                  <option value="Q3">Trah Ayah Pasangan (Kiri-Bawah) • Mawar Merah</option>
+                  <option value="Q4">Trah Ibu Pasangan (Kanan-Bawah) • Lembayung Ungu</option>
                 </select>
               </div>
 
               {/* Opsi Garis Terhubung oleh Admin */}
               <div className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/60 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-200 block text-xs">Garis Konektor Hierarki</span>
+                  <span className="font-bold text-slate-200 block text-xs">Garis Konektor Rasi Bintang</span>
                   <span className="text-[10px] text-slate-400">Hapus / sembunyikan jika ingin orbit tanpa garis terhubung</span>
                 </div>
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -2351,7 +2408,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
               <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-700/50 flex flex-col gap-2.5">
                 <p className="text-[11px] text-slate-300 leading-relaxed">
-                  💡 <b>Hierarki Mutlak Admin:</b> Urutan nomor anak sesuai urutan pengetikan koma (<code className="text-emerald-400">,</code>) dan langsung tampil berurutan berdekatan tanpa garis menyilang.
+                  💡 <b>Hierarki Mutlak Admin:</b> Urutan nomor anak sesuai urutan pengetikan koma (<code className="text-emerald-400">,</code>) dan langsung tampil berurutan berdekatan dengan garis melengkung anti-silang.
                 </p>
 
                 <div>
@@ -2474,7 +2531,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                     Buku Besar (Auto-Ledger Activity)
                   </h3>
                   <p className="text-[10px] text-slate-400">
-                    Riwayat penataan silsilah 6 orbit &amp; garis hierarki
+                    Riwayat penataan silsilah 6 orbit &amp; rasi bintang kosmik
                   </p>
                 </div>
               </div>
