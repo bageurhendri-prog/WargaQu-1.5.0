@@ -115,17 +115,20 @@ export interface BatchTreeNode extends BatchFamilyItem {
 }
 
 // 1. DATA SILSILAH BERBASIS BATCH DOT NOTATION (Universal ID - Kode Pengguna)
+// Mendukung lengkap 5 Generasi: Uyut -> Kakek -> Ayah -> Anak -> Cucu
 export const DEFAULT_BATCH_FAMILY_DATA: BatchFamilyItem[] = [
-  { id: "0", name: "Uyut (Akar)", role: "Akar Leluhur", gender: "L" },
-  { id: "0.1", name: "Kakek A (Sulung)", role: "Kakek Sulung", gender: "L" },
-  { id: "0.2", name: "Kakek B (Bontot)", role: "Kakek Bungsu", gender: "L" },
-  { id: "0.1.1", name: "Ayah (Anak 4 Cucu)", role: "Ayah Kandung", gender: "L" },
-  { id: "0.1.2", name: "Paman A", role: "Paman", gender: "L" },
-  { id: "0.2.1", name: "Bibi (Single)", role: "Bibi", gender: "P" },
-  { id: "0.1.1.1", name: "User (Kang Hendri)", role: "User Utama (Ego)", isUser: true, gender: "L" },
-  { id: "0.1.1.2", name: "Adik 1", role: "Adik Pertama", gender: "L" },
-  { id: "0.1.1.3", name: "Adik 2", role: "Adik Kedua", gender: "P" },
-  { id: "0.1.1.4", name: "Adik 3", role: "Adik Ketiga", gender: "L" }
+  { id: "0", name: "Uyut (Akar)", role: "Akar Leluhur (Gen 0)", gender: "L" },
+  { id: "0.1", name: "Kakek A (Sulung)", role: "Kakek Sulung (Gen 1)", gender: "L" },
+  { id: "0.2", name: "Kakek B (Bontot)", role: "Kakek Bungsu (Gen 1)", gender: "L" },
+  { id: "0.1.1", name: "Ayah (Anak 4 Cucu)", role: "Ayah Kandung (Gen 2)", gender: "L" },
+  { id: "0.1.2", name: "Paman A", role: "Paman (Gen 2)", gender: "L" },
+  { id: "0.2.1", name: "Bibi (Single)", role: "Bibi (Gen 2)", gender: "P" },
+  { id: "0.1.1.1", name: "User (Kang Hendri)", role: "User Utama (Ego - Gen 3)", isUser: true, gender: "L" },
+  { id: "0.1.1.2", name: "Adik 1", role: "Adik Pertama (Gen 3)", gender: "L" },
+  { id: "0.1.1.3", name: "Adik 2", role: "Adik Kedua (Gen 3)", gender: "P" },
+  { id: "0.1.1.4", name: "Adik 3", role: "Adik Ketiga (Gen 3)", gender: "L" },
+  { id: "0.1.1.1.1", name: "Cucu 1 (Putra User)", role: "Cucu Sulung (Gen 4)", gender: "L" },
+  { id: "0.1.1.1.2", name: "Cucu 2 (Putri User)", role: "Cucu Bungsu (Gen 4)", gender: "P" }
 ];
 
 // Config Warna Jalur per Level Generasi
@@ -133,9 +136,19 @@ export const BATCH_LEVEL_COLORS: Record<number, string> = {
   0: "#f97316", // Uyut (Oranye)
   1: "#a855f7", // Kakek/Nenek (Ungu)
   2: "#3b82f6", // Ayah/Ibu/Paman (Biru)
-  3: "#10b981", // Anak/Cucu/User (Hijau)
+  3: "#10b981", // Anak/User (Hijau)
   4: "#06b6d4", // Cucu (Cyan)
   5: "#ec4899"  // Cicit (Pink)
+};
+
+// Label Generasi Silsilah (Uyut -> Kakek -> Ayah -> Anak -> Cucu)
+export const BATCH_LEVEL_LABELS: Record<number, string> = {
+  0: "Uyut",
+  1: "Kakek",
+  2: "Ayah",
+  3: "Anak",
+  4: "Cucu",
+  5: "Cicit"
 };
 
 // Helper konversi data rasi orbit ke Batch Dot Notation
@@ -197,10 +210,12 @@ export function convertOrbitNodesToBatchData(
   return result.length > 0 ? result : DEFAULT_BATCH_FAMILY_DATA;
 }
 
-// 3. KALKULASI KAPLING BEBAS TABRAKAN (BOUNDING BOX MATH ENGINE)
+// 3. KALKULASI KAPLING BEBAS TABRAKAN (BOUNDING BOX & TOPOLOGY MATH ENGINE)
+// Mendukung Opsi Struktur: 'paralel' (menyebar), 'seri' (bus rel sirkuit 90°), 'linier' (poros lurus tegas)
 export function buildTreeHierarchyEngine(
   data: BatchFamilyItem[],
-  direction: 'bottom-up' | 'top-down' = 'bottom-up'
+  direction: 'bottom-up' | 'top-down' = 'bottom-up',
+  structureMode: 'paralel' | 'seri' | 'linier' = 'paralel'
 ) {
   const map: Record<string, BatchTreeNode> = {};
   const roots: BatchTreeNode[] = [];
@@ -226,38 +241,59 @@ export function buildTreeHierarchyEngine(
   // Hitung Lebar Kapling Rekursif (Anti Numpuk)
   function calculateSubtreeWidth(node: BatchTreeNode): number {
     if (!node) return 0;
+    const baseNodeWidth = structureMode === 'linier' ? 122 : 132;
     if (node.children.length === 0) {
-      node.width = 130; // Lebar minimum per card + padding
+      node.width = baseNodeWidth;
       return node.width;
     }
     node.width = node.children.reduce((acc, child) => acc + calculateSubtreeWidth(child), 0);
-    return Math.max(node.width, 130);
+    return Math.max(node.width, baseNodeWidth);
   }
 
-  // Set Koordinat X dan Y Pas
-  function assignCoordinates(node: BatchTreeNode, startX: number, startY: number, levelGap = 150) {
+  // Set Koordinat X dan Y Pas untuk setiap mode struktur
+  function assignCoordinates(node: BatchTreeNode, startX: number, startY: number, levelGap = 160) {
     if (!node) return;
     const level = node.id.split('.').length - 1;
     node.y = direction === 'bottom-up' ? startY - (level * levelGap) : startY + (level * levelGap);
-    node.x = startX + node.width / 2;
 
-    let currentX = startX;
-    node.children.forEach(child => {
-      assignCoordinates(child, currentX, startY, levelGap);
-      currentX += child.width;
-    });
+    if (structureMode === 'linier') {
+      // Pada mode linier, posisikan anak terlebih dahulu, lalu luruskan parent sejajar sumbu anak utama (poros nasab lurus)
+      let currentX = startX;
+      node.children.forEach(child => {
+        assignCoordinates(child, currentX, startY, levelGap);
+        currentX += child.width;
+      });
+
+      // Cari anak poros utama (User atau anak pertama .1)
+      const primaryChild = node.children.find(c => c.isUser || c.id.endsWith('.1')) || node.children[0];
+      if (primaryChild && node.children.length > 0) {
+        node.x = primaryChild.x;
+      } else {
+        node.x = startX + node.width / 2;
+      }
+    } else {
+      // Mode Paralel & Seri: kapling terbagi seimbang di tengah
+      node.x = startX + node.width / 2;
+
+      let currentX = startX;
+      node.children.forEach(child => {
+        assignCoordinates(child, currentX, startY, levelGap);
+        currentX += child.width;
+      });
+    }
   }
 
-  const startY = direction === 'bottom-up' ? 950 : 160;
+  // Start Y disesuaikan agar 5 tingkat generasi (Uyut - Kakek - Ayah - Anak - Cucu) lega
+  const startY = direction === 'bottom-up' ? 1040 : 140;
   let runningX = 100;
 
   roots.forEach(root => {
     calculateSubtreeWidth(root);
     assignCoordinates(root, runningX, startY);
-    runningX += root.width + 60;
+    runningX += root.width + 70;
   });
 
-  return { roots, totalWidth: Math.max(runningX + 150, 1600), totalHeight: 1200 };
+  return { roots, totalWidth: Math.max(runningX + 160, 1600), totalHeight: 1280 };
 }
 
 // ----------------------------------------------------------------------------
@@ -490,10 +526,13 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   // Opsi Gaya Garis: 'double' (2 Paralel), 'triple' (3 Kabel Rel), 'single' (1 Utama)
   const [lineStylePattern, setLineStylePattern] = useState<'single' | 'double' | 'triple'>('double');
 
+  // Opsi Garis Keturunan & Struktur Nasab: 'paralel' (menyebar), 'seri' (bus rel sirkuit 90°), 'linier' (poros lurus langsung)
+  const [lineageStructureMode, setLineageStructureMode] = useState<'paralel' | 'seri' | 'linier'>('paralel');
+
   // Arah Pohon Notasi: 'bottom-up' (Bawah ke Atas - Sesuai Kode) vs 'top-down' (Atas ke Bawah)
   const [treeDirection, setTreeDirection] = useState<'bottom-up' | 'top-down'>('bottom-up');
 
-  // Sumber Data: 'main' (Silsilah Aktif Di-Notasikan) vs 'sample' (10 Anggota Universal ID Spesifikasi)
+  // Sumber Data: 'main' (Silsilah Aktif Di-Notasikan) vs 'sample' (12 Anggota Universal ID Spesifikasi Uyut-Cucu)
   const [batchDataSource, setBatchDataSource] = useState<'main' | 'sample'>('main');
 
   // Kamera SVG untuk Pan & Zoom Mode Batch Tree
@@ -656,8 +695,8 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   }, [batchDataSource, familyTree.nodes]);
 
   const treeHierarchy = useMemo(() => {
-    return buildTreeHierarchyEngine(batchItems, treeDirection);
-  }, [batchItems, treeDirection]);
+    return buildTreeHierarchyEngine(batchItems, treeDirection, lineageStructureMode);
+  }, [batchItems, treeDirection, lineageStructureMode]);
 
   // SVG Pan & Zoom Handlers
   const handleSvgMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -784,17 +823,28 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const level = node.id.split('.').length - 1;
       const isSelected = selectedNode?.id === (node.originalNodeId || node.id);
 
-      // Render lines to children
+      // Render lines to children berdasarkan mode struktur: LINIER, SERI, PARALEL
       node.children.forEach(child => {
         const x1 = node.x;
-        const y1 = treeDirection === 'bottom-up' ? node.y - 20 : node.y + 20;
+        const y1 = treeDirection === 'bottom-up' ? node.y - 21 : node.y + 21;
         const x2 = child.x;
-        const y2 = treeDirection === 'bottom-up' ? child.y + 20 : child.y - 20;
+        const y2 = treeDirection === 'bottom-up' ? child.y + 21 : child.y - 21;
         const midY = y1 + (y2 - y1) / 2;
-        const pathD = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+
+        let pathD = '';
+        if (lineageStructureMode === 'linier') {
+          // 1. LINIER: Garis lurus tegas langsung menghubungkan poros nasab
+          pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
+        } else if (lineageStructureMode === 'seri') {
+          // 2. SERI: Sirkuit bus rel orthogonal bertingkat (siku 90°)
+          pathD = `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
+        } else {
+          // 3. PARALEL: Kurva Bezier halus menyebar ke cabang paralel
+          pathD = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+        }
 
         const strokeColor = BATCH_LEVEL_COLORS[level % 6] || "#94a3b8";
-        const baseWidth = Math.max(2, 6 - level * 1.2);
+        const baseWidth = Math.max(2, 6 - level * 1.1);
 
         if (lineStylePattern === 'single') {
           linesList.push(
@@ -829,7 +879,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             </g>
           );
         } else {
-          // triple
+          // triple (kabel rel / bus bar 3 jalur)
           linesList.push(
             <g key={`line-${node.id}-${child.id}`}>
               <path
@@ -859,12 +909,51 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           );
         }
 
+        // Khusus Mode SERI: Tambahkan Terminal Percabangan Bus (Junction Dots Siku)
+        if (lineageStructureMode === 'seri') {
+          linesList.push(
+            <g key={`junction-${node.id}-${child.id}`} className="pointer-events-none">
+              <circle
+                cx={x1}
+                cy={midY}
+                r={3.2}
+                fill={strokeColor}
+                stroke={isLight ? "#ffffff" : "#0f172a"}
+                strokeWidth={1.2}
+              />
+              <circle
+                cx={x2}
+                cy={midY}
+                r={3.2}
+                fill={strokeColor}
+                stroke={isLight ? "#ffffff" : "#0f172a"}
+                strokeWidth={1.2}
+              />
+            </g>
+          );
+        }
+
+        // Khusus Mode LINIER: Tambahkan Pip Penanda Aliran Nasab Lurus
+        if (lineageStructureMode === 'linier') {
+          linesList.push(
+            <circle
+              key={`pip-${node.id}-${child.id}`}
+              cx={(x1 + x2) / 2}
+              cy={(y1 + y2) / 2}
+              r={2.5}
+              fill={strokeColor}
+              className="pointer-events-none opacity-85"
+            />
+          );
+        }
+
         traverse(child);
       });
 
       // Render node card
       const strokeColor = BATCH_LEVEL_COLORS[level % 6] || "#fff";
       const cardFill = isLight ? "#ffffff" : "#1e293b";
+      const levelLabel = BATCH_LEVEL_LABELS[level] || `Gen ${level}`;
 
       nodesList.push(
         <g
@@ -878,19 +967,19 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 setSelectedNode(matched);
                 if (isAdminMode) setShowAdminEditModal(true);
                 else setShowUserClaimModal(true);
-                showNotification?.(`Memilih [${node.id}] ${node.name}`);
+                showNotification?.(`Memilih [${node.id}] ${node.name} (${levelLabel})`);
                 return;
               }
             }
-            showNotification?.(`Node terpilih: [${node.id}] ${node.name} (${node.role || 'Anggota'})`);
+            showNotification?.(`Node terpilih: [${node.id}] ${node.name} • ${levelLabel}`);
           }}
         >
           {isSelected && (
             <rect
-              x={node.x - 56}
-              y={node.y - 25}
-              width={112}
-              height={50}
+              x={node.x - 58}
+              y={node.y - 26}
+              width={116}
+              height={52}
               rx={10}
               fill={strokeColor}
               fillOpacity={0.25}
@@ -900,10 +989,10 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           )}
 
           <rect
-            x={node.x - 50}
-            y={node.y - 20}
-            width={100}
-            height={40}
+            x={node.x - 52}
+            y={node.y - 21}
+            width={104}
+            height={42}
             rx={8}
             fill={cardFill}
             stroke={strokeColor}
@@ -911,11 +1000,12 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             className="filter drop-shadow-sm hover:brightness-110 transition"
           />
 
+          {/* Badge Universal ID */}
           <text
-            x={node.x - 42}
-            y={node.y - 5}
+            x={node.x - 44}
+            y={node.y - 6}
             fill={isLight ? "#d97706" : "#f59e0b"}
-            fontSize={10}
+            fontSize={9.5}
             fontWeight="bold"
             fontFamily="monospace"
             className="pointer-events-none"
@@ -923,9 +1013,23 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             [{node.id}]
           </text>
 
+          {/* Badge Label Generasi (Uyut / Kakek / Ayah / Anak / Cucu) */}
+          <text
+            x={node.x + 44}
+            y={node.y - 6}
+            fill={strokeColor}
+            fontSize={8.5}
+            fontWeight="bold"
+            textAnchor="end"
+            className="pointer-events-none"
+          >
+            {levelLabel}
+          </text>
+
+          {/* Nama Anggota */}
           <text
             x={node.x}
-            y={node.y + 12}
+            y={node.y + 13}
             fill={isLight ? "#0f172a" : "#f8fafc"}
             fontSize={11}
             fontWeight="bold"
@@ -936,7 +1040,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           </text>
 
           {node.isUser && (
-            <g transform={`translate(${node.x + 36}, ${node.y - 10})`}>
+            <g transform={`translate(${node.x + 38}, ${node.y - 12})`}>
               <circle cx={0} cy={0} r={6} fill="#0284c7" />
               <text x={0} y={2.5} fontSize={7} fill="#ffffff" textAnchor="middle" fontWeight="bold">★</text>
             </g>
@@ -948,7 +1052,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     treeHierarchy.roots.forEach(traverse);
 
     return { renderedConnections: linesList, renderedNodes: nodesList };
-  }, [treeHierarchy, lineStylePattern, treeDirection, isLight, selectedNode, familyTree.nodes, isAdminMode]);
+  }, [treeHierarchy, lineStylePattern, lineageStructureMode, treeDirection, isLight, selectedNode, familyTree.nodes, isAdminMode]);
 
   // Simpan Silsilah Permanen & Lanjut Edit
   const handleSaveTreeData = () => {
@@ -1407,13 +1511,32 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             const toX = child._renderX;
             const toY = child._renderY;
 
-            if (lineCurveStyle === 'straight') {
-              // Garis lurus konvensional
+            if (lineageStructureMode === 'linier' || lineCurveStyle === 'straight') {
+              // Garis lurus konvensional / linier langsung
               ctx.beginPath();
               ctx.moveTo(fromX, fromY);
               ctx.lineTo(toX, toY);
+            } else if (lineageStructureMode === 'seri') {
+              // Garis seri berjenjang antar orbit (bus step arc)
+              ctx.beginPath();
+              ctx.moveTo(fromX, fromY);
+              const fromR = parentNode._radius || 0;
+              const toR = child._radius || 100;
+              const fromAngle = parentNode._angle || 0;
+              const toAngle = child._angle || 0;
+
+              if (fromR < 10) {
+                ctx.lineTo(toX, toY);
+              } else {
+                const midR = (fromR + toR) * 0.5;
+                const p1X = q.center.x + midR * Math.cos(fromAngle);
+                const p1Y = q.center.y + midR * Math.sin(fromAngle);
+                ctx.lineTo(p1X, p1Y);
+                ctx.arc(q.center.x, q.center.y, midR, fromAngle, toAngle, fromAngle > toAngle);
+                ctx.lineTo(toX, toY);
+              }
             } else {
-              // GARIS RASI BINTANG MELENGKUNG ALAMI (Cubic Bezier Mengikuti Aliran Orbit)
+              // GARIS RASI BINTANG MELENGKUNG ALAMI (Paralel / Cubic Bezier Mengikuti Aliran Orbit)
               ctx.beginPath();
               ctx.moveTo(fromX, fromY);
 
@@ -1904,11 +2027,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines, currentTheme]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines, currentTheme, lineageStructureMode]);
 
   useEffect(() => {
     renderCanvas();
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines, currentTheme]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines, currentTheme, lineageStructureMode]);
 
   // -------------------------------------------------------------
   // MOUSE & TOUCH GESTURES (DRAGGING CAMERA ATAU DRAGGING BINTANG DI ORBIT)
@@ -2624,6 +2747,58 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
           {/* KONTROL KHUSUS MODE NOTASI BATCH */}
           {activeRendererMode === 'batch_tree' ? (
             <>
+              {/* OPSI STRUKTUR GARIS KETURUNAN: LINIER / SERI / PARALEL */}
+              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
+                <span className="text-[10px] font-bold px-1.5 opacity-70 hidden sm:inline">Struktur:</span>
+                <button
+                  onClick={() => {
+                    setLineageStructureMode('linier');
+                    showNotification?.('⚡ Struktur Keturunan: LINIER (Poros Lurus Tegas Uyut ➔ Kakek ➔ Ayah ➔ Anak ➔ Cucu)');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                    lineageStructureMode === 'linier'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                  }`}
+                  title="Garis Keturunan Linier: Poros lurus tegak langsung menghubungkan Uyut - Kakek - Ayah - Anak - Cucu"
+                >
+                  <Zap className="w-3.5 h-3.5 fill-current" />
+                  <span>Linier</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setLineageStructureMode('seri');
+                    showNotification?.('🔀 Struktur Keturunan: SERI (Sirkuit Bus Rel 90° & Terminal Percabangan Uyut ➔ Cucu)');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                    lineageStructureMode === 'seri'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                  }`}
+                  title="Garis Keturunan Seri: Jalur rel sirkuit orthogonal bertingkat dengan junction terminal"
+                >
+                  <GitMerge className="w-3.5 h-3.5" />
+                  <span>Seri</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setLineageStructureMode('paralel');
+                    showNotification?.('🔱 Struktur Keturunan: PARALEL (Cabang Kurva Bezier Menyebar Sejajar)');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                    lineageStructureMode === 'paralel'
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                  }`}
+                  title="Garis Keturunan Paralel: Cabang kapling menyebar dengan kurva Bezier mulus bebas benturan"
+                >
+                  <Network className="w-3.5 h-3.5" />
+                  <span>Paralel</span>
+                </button>
+              </div>
+
               {/* Opsi Gaya Garis: Single, Double, Triple */}
               <button
                 onClick={() => {
@@ -2663,26 +2838,74 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 <span>{treeDirection === 'bottom-up' ? 'Bawah ➔ Atas' : 'Atas ➔ Bawah'}</span>
               </button>
 
-              {/* Sumber Data: Silsilah Utama vs Contoh Spesifikasi 10 Node */}
+              {/* Sumber Data: Silsilah Utama vs Contoh Spesifikasi 12 Node (Uyut-Cucu) */}
               <button
                 onClick={() => {
                   const next = batchDataSource === 'main' ? 'sample' : 'main';
                   setBatchDataSource(next);
-                  showNotification?.(next === 'sample' ? 'Memuat 10 Anggota Contoh Notasi Batch Universal ID' : 'Memuat Seluruh Silsilah Keluarga Utama');
+                  showNotification?.(next === 'sample' ? 'Memuat 12 Anggota Contoh Spesifikasi (Uyut -> Kakek -> Ayah -> Anak -> Cucu)' : 'Memuat Seluruh Silsilah Keluarga Utama');
                 }}
                 className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border cursor-pointer ${
                   batchDataSource === 'sample'
                     ? 'bg-amber-500 text-slate-950 font-bold border-amber-300 shadow-xs'
                     : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
                 }`}
-                title="Beralih Sumber Data: Silsilah Utama Aktif vs Contoh Spesifikasi (10 Anggota)"
+                title="Beralih Sumber Data: Silsilah Utama Aktif vs Contoh Spesifikasi 5 Generasi"
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>{batchDataSource === 'sample' ? 'Data: Contoh 10 Node' : 'Data: Silsilah Utama'}</span>
+                <span>{batchDataSource === 'sample' ? 'Data: Contoh 5 Gen' : 'Data: Silsilah Utama'}</span>
               </button>
             </>
           ) : (
             <>
+              {/* OPSI STRUKTUR GARIS PADA RASI ORBIT KOSMIK */}
+              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
+                <button
+                  onClick={() => {
+                    setLineageStructureMode('linier');
+                    setLineCurveStyle('straight');
+                    showNotification?.('⚡ Garis Rasi Bintang: LINIER (Sinar Radial Lurus Pusat Uyut ke Cucu)');
+                    renderCanvas();
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
+                    lineageStructureMode === 'linier' ? 'bg-amber-500 text-slate-950 shadow-xs' : (isLight ? 'text-slate-600' : 'text-slate-400')
+                  }`}
+                  title="Garis Keturunan Linier: Sinar radial lurus dari Uyut ke Cucu"
+                >
+                  <Zap className="w-3 h-3 fill-current" />
+                  <span>Linier</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setLineageStructureMode('seri');
+                    showNotification?.('🔀 Garis Rasi Bintang: SERI (Bus Rel Berantai Antar Orbit)');
+                    renderCanvas();
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
+                    lineageStructureMode === 'seri' ? 'bg-purple-600 text-white shadow-xs' : (isLight ? 'text-slate-600' : 'text-slate-400')
+                  }`}
+                  title="Garis Keturunan Seri: Bus sirkuit bertingkat antar orbit"
+                >
+                  <GitMerge className="w-3 h-3" />
+                  <span>Seri</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setLineageStructureMode('paralel');
+                    setLineCurveStyle('curved');
+                    showNotification?.('🔱 Garis Rasi Bintang: PARALEL (Lengkung Radial Sektor Orbit)');
+                    renderCanvas();
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
+                    lineageStructureMode === 'paralel' ? 'bg-sky-600 text-white shadow-xs' : (isLight ? 'text-slate-600' : 'text-slate-400')
+                  }`}
+                  title="Garis Keturunan Paralel: Lengkung halus rasi bintang"
+                >
+                  <Network className="w-3 h-3" />
+                  <span>Paralel</span>
+                </button>
+              </div>
+
               {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
               <button
                 onClick={() => {
@@ -2862,16 +3085,25 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             </svg>
 
             {/* Info Legend Badge di pojok kiri atas */}
-            <div className={`absolute top-3 left-3 z-10 px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-xs pointer-events-none text-xs ${
-              isLight ? 'bg-white/90 border-slate-200 text-slate-700' : 'bg-slate-900/90 border-slate-800 text-slate-300'
+            <div className={`absolute top-3 left-3 z-10 px-3 py-2 rounded-xl border backdrop-blur-md shadow-md pointer-events-none text-xs ${
+              isLight ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-slate-900/95 border-slate-800 text-slate-200'
             }`}>
               <div className="flex items-center gap-2 font-mono font-bold text-[11px]">
                 <span className="text-amber-500 font-extrabold">[Universal ID]</span>
-                <span>• Bounding Box Anti-Numpuk</span>
+                <span>• Struktur: <span className="uppercase text-emerald-400 font-bold">{lineageStructureMode}</span></span>
+                <span className="text-[10px] text-slate-400">({lineStylePattern})</span>
               </div>
-              <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                <span>Garis: <strong className="text-emerald-500 uppercase">{lineStylePattern}</strong></span>
-                <span>• Level: <span className="text-orange-400 font-bold">0 Uyut</span>, <span className="text-purple-400 font-bold">1 Kakek</span>, <span className="text-blue-400 font-bold">2 Ayah</span>, <span className="text-emerald-400 font-bold">3 Anak</span></span>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-1 flex-wrap">
+                <span className="font-semibold text-slate-300">5 Generasi:</span>
+                <span className="text-orange-400 font-bold">0. Uyut</span>
+                <span>➔</span>
+                <span className="text-purple-400 font-bold">1. Kakek</span>
+                <span>➔</span>
+                <span className="text-blue-400 font-bold">2. Ayah</span>
+                <span>➔</span>
+                <span className="text-emerald-400 font-bold">3. Anak</span>
+                <span>➔</span>
+                <span className="text-cyan-400 font-bold">4. Cucu</span>
               </div>
             </div>
 
