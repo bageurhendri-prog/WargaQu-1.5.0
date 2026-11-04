@@ -36,7 +36,8 @@ import {
   Layers,
   GitMerge,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Share2
 } from 'lucide-react';
 
 export interface OrbitNode {
@@ -115,20 +116,23 @@ export interface BatchTreeNode extends BatchFamilyItem {
 }
 
 // 1. DATA SILSILAH BERBASIS BATCH DOT NOTATION (Universal ID - Kode Pengguna)
-// Mendukung lengkap 5 Generasi: Uyut -> Kakek -> Ayah -> Anak -> Cucu
+// Mendukung lengkap 5 Generasi & Urutan Anak 1, 2, 3, 4, 5, 6, 7 dst: Uyut -> Kakek -> Ayah -> Anak (1-7) -> Cucu
 export const DEFAULT_BATCH_FAMILY_DATA: BatchFamilyItem[] = [
   { id: "0", name: "Uyut (Akar)", role: "Akar Leluhur (Gen 0)", gender: "L" },
   { id: "0.1", name: "Kakek A (Sulung)", role: "Kakek Sulung (Gen 1)", gender: "L" },
   { id: "0.2", name: "Kakek B (Bontot)", role: "Kakek Bungsu (Gen 1)", gender: "L" },
-  { id: "0.1.1", name: "Ayah (Anak 4 Cucu)", role: "Ayah Kandung (Gen 2)", gender: "L" },
+  { id: "0.1.1", name: "Ayah (Anak 7 Cucu)", role: "Ayah Kandung (Gen 2)", gender: "L" },
   { id: "0.1.2", name: "Paman A", role: "Paman (Gen 2)", gender: "L" },
   { id: "0.2.1", name: "Bibi (Single)", role: "Bibi (Gen 2)", gender: "P" },
-  { id: "0.1.1.1", name: "User (Kang Hendri)", role: "User Utama (Ego - Gen 3)", isUser: true, gender: "L" },
-  { id: "0.1.1.2", name: "Adik 1", role: "Adik Pertama (Gen 3)", gender: "L" },
-  { id: "0.1.1.3", name: "Adik 2", role: "Adik Kedua (Gen 3)", gender: "P" },
-  { id: "0.1.1.4", name: "Adik 3", role: "Adik Ketiga (Gen 3)", gender: "L" },
-  { id: "0.1.1.1.1", name: "Cucu 1 (Putra User)", role: "Cucu Sulung (Gen 4)", gender: "L" },
-  { id: "0.1.1.1.2", name: "Cucu 2 (Putri User)", role: "Cucu Bungsu (Gen 4)", gender: "P" }
+  { id: "0.1.1.1", name: "User (Kang Hendri)", role: "Anak ke-1 (Sulung - Ego)", isUser: true, gender: "L" },
+  { id: "0.1.1.2", name: "Adik 1", role: "Anak ke-2", gender: "L" },
+  { id: "0.1.1.3", name: "Adik 2", role: "Anak ke-3", gender: "P" },
+  { id: "0.1.1.4", name: "Adik 3", role: "Anak ke-4", gender: "L" },
+  { id: "0.1.1.5", name: "Adik 4", role: "Anak ke-5", gender: "P" },
+  { id: "0.1.1.6", name: "Adik 5", role: "Anak ke-6", gender: "L" },
+  { id: "0.1.1.7", name: "Adik 6 (Bontot)", role: "Anak ke-7 (Bungsu)", gender: "L" },
+  { id: "0.1.1.1.1", name: "Cucu 1 (Putra User)", role: "Cucu ke-1 (Sulung)", gender: "L" },
+  { id: "0.1.1.1.2", name: "Cucu 2 (Putri User)", role: "Cucu ke-2 (Bungsu)", gender: "P" }
 ];
 
 // Config Warna Jalur per Level Generasi
@@ -529,6 +533,9 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   // Opsi Garis Keturunan & Struktur Nasab: 'paralel' (menyebar), 'seri' (bus rel sirkuit 90°), 'linier' (poros lurus langsung)
   const [lineageStructureMode, setLineageStructureMode] = useState<'paralel' | 'seri' | 'linier'>('paralel');
 
+  // Opsi Rangkaian Saudara / Anak ke 1, 2, 3, 4, 5, 6, 7, dst: 'paralel' | 'seri' | 'paralel_seri'
+  const [siblingCircuitMode, setSiblingCircuitMode] = useState<'paralel' | 'seri' | 'paralel_seri'>('paralel_seri');
+
   // Arah Pohon Notasi: 'bottom-up' (Bawah ke Atas - Sesuai Kode) vs 'top-down' (Atas ke Bawah)
   const [treeDirection, setTreeDirection] = useState<'bottom-up' | 'top-down'>('bottom-up');
 
@@ -823,8 +830,14 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       const level = node.id.split('.').length - 1;
       const isSelected = selectedNode?.id === (node.originalNodeId || node.id);
 
-      // Render lines to children berdasarkan mode struktur: LINIER, SERI, PARALEL
-      node.children.forEach(child => {
+      // 1. Render Garis dari Parent ke Anak-Anak (Anak 1, 2, 3, 4, 5, 6, 7, dst)
+      const sortedChildren = [...node.children].sort((a, b) => {
+        const na = parseInt(a.id.split('.').pop() || '0', 10);
+        const nb = parseInt(b.id.split('.').pop() || '0', 10);
+        return na - nb;
+      });
+
+      sortedChildren.forEach((child, childIdx) => {
         const x1 = node.x;
         const y1 = treeDirection === 'bottom-up' ? node.y - 21 : node.y + 21;
         const x2 = child.x;
@@ -846,6 +859,10 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         const strokeColor = BATCH_LEVEL_COLORS[level % 6] || "#94a3b8";
         const baseWidth = Math.max(2, 6 - level * 1.1);
 
+        // Jika mode anak adalah 'seri', maka aliran primer orang tua masuk ke Anak ke-1 (Sulung),
+        // sedangkan anak ke-2, 3, 4, 5... tersambung lewat rantai seri horizontal antar-saudara
+        const isSecondarySeriesChild = siblingCircuitMode === 'seri' && childIdx > 0 && sortedChildren.length > 1;
+
         if (lineStylePattern === 'single') {
           linesList.push(
             <path
@@ -853,18 +870,21 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               d={pathD}
               fill="none"
               stroke={strokeColor}
-              strokeWidth={baseWidth}
+              strokeWidth={isSecondarySeriesChild ? 1.4 : baseWidth}
+              strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
+              strokeOpacity={isSecondarySeriesChild ? 0.45 : 1}
               strokeLinecap="round"
             />
           );
         } else if (lineStylePattern === 'double') {
           linesList.push(
-            <g key={`line-${node.id}-${child.id}`}>
+            <g key={`line-${node.id}-${child.id}`} opacity={isSecondarySeriesChild ? 0.45 : 1}>
               <path
                 d={pathD}
                 fill="none"
                 stroke={strokeColor}
                 strokeWidth={Math.max(1.2, baseWidth / 2)}
+                strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
                 strokeLinecap="round"
                 transform="translate(-2, 0)"
               />
@@ -873,6 +893,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 fill="none"
                 stroke={strokeColor}
                 strokeWidth={Math.max(1.2, baseWidth / 2)}
+                strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
                 strokeLinecap="round"
                 transform="translate(2, 0)"
               />
@@ -881,7 +902,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         } else {
           // triple (kabel rel / bus bar 3 jalur)
           linesList.push(
-            <g key={`line-${node.id}-${child.id}`}>
+            <g key={`line-${node.id}-${child.id}`} opacity={isSecondarySeriesChild ? 0.45 : 1}>
               <path
                 d={pathD}
                 fill="none"
@@ -895,6 +916,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 fill="none"
                 stroke={strokeColor}
                 strokeWidth={baseWidth}
+                strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
                 strokeLinecap="round"
               />
               <path
@@ -950,10 +972,87 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
         traverse(child);
       });
 
-      // Render node card
+      // 2. SIBLING CIRCUIT CONNECTIONS: Rangkaian Seri / Paralel-Seri untuk Anak ke 1, 2, 3, 4, 5, 6, 7, dst
+      if (sortedChildren.length > 1 && (siblingCircuitMode === 'seri' || siblingCircuitMode === 'paralel_seri')) {
+        for (let i = 0; i < sortedChildren.length - 1; i++) {
+          const c1 = sortedChildren[i];
+          const c2 = sortedChildren[i + 1];
+          const order1 = c1.id.split('.').pop() || (i + 1).toString();
+          const order2 = c2.id.split('.').pop() || (i + 2).toString();
+
+          const startBridgeX = c1.x + 52;
+          const endBridgeX = c2.x - 52;
+          const bridgeY = c1.y;
+          const midBridgeX = (startBridgeX + endBridgeX) / 2;
+          const siblingColor = BATCH_LEVEL_COLORS[(level + 1) % 6] || BATCH_LEVEL_COLORS[level % 6] || "#94a3b8";
+
+          if (endBridgeX > startBridgeX) {
+            linesList.push(
+              <g key={`sibling-link-${node.id}-${c1.id}-${c2.id}`} className="pointer-events-none select-none">
+                {/* Garis Horizontal Penghubung Seri Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ ... */}
+                <path
+                  d={`M ${startBridgeX} ${bridgeY} L ${endBridgeX} ${c2.y}`}
+                  fill="none"
+                  stroke={siblingColor}
+                  strokeWidth={siblingCircuitMode === 'seri' ? 2.8 : 2}
+                  strokeDasharray={siblingCircuitMode === 'paralel_seri' ? "5 3" : undefined}
+                  strokeLinecap="round"
+                />
+
+                {/* Junction Dots di tepi kartu anak */}
+                <circle
+                  cx={startBridgeX}
+                  cy={bridgeY}
+                  r={3.2}
+                  fill={siblingColor}
+                  stroke={isLight ? '#ffffff' : '#0f172a'}
+                  strokeWidth={1.2}
+                />
+                <circle
+                  cx={endBridgeX}
+                  cy={c2.y}
+                  r={3.2}
+                  fill={siblingColor}
+                  stroke={isLight ? '#ffffff' : '#0f172a'}
+                  strokeWidth={1.2}
+                />
+
+                {/* Badge Aliran Seri Urutan Kelahiran Anak: Anak [1 ➔ 2], [2 ➔ 3], dst */}
+                <g transform={`translate(${midBridgeX}, ${bridgeY})`}>
+                  <rect
+                    x={-19}
+                    y={-8.5}
+                    width={38}
+                    height={17}
+                    rx={8.5}
+                    fill={isLight ? '#ffffff' : '#0f172a'}
+                    stroke={siblingColor}
+                    strokeWidth={1.5}
+                    className="filter drop-shadow-xs"
+                  />
+                  <text
+                    x={0}
+                    y={3.5}
+                    fontSize={8}
+                    fontWeight="bold"
+                    fill={siblingColor}
+                    textAnchor="middle"
+                    fontFamily="monospace"
+                  >
+                    {order1}➔{order2}
+                  </text>
+                </g>
+              </g>
+            );
+          }
+        }
+      }
+
+      // 3. Render node card
       const strokeColor = BATCH_LEVEL_COLORS[level % 6] || "#fff";
       const cardFill = isLight ? "#ffffff" : "#1e293b";
       const levelLabel = BATCH_LEVEL_LABELS[level] || `Gen ${level}`;
+      const childNum = node.id.split('.').pop() || '1';
 
       nodesList.push(
         <g
@@ -967,11 +1066,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 setSelectedNode(matched);
                 if (isAdminMode) setShowAdminEditModal(true);
                 else setShowUserClaimModal(true);
-                showNotification?.(`Memilih [${node.id}] ${node.name} (${levelLabel})`);
+                showNotification?.(`Memilih [${node.id}] ${node.name} (${level === 3 ? `Anak ke-${childNum}` : levelLabel})`);
                 return;
               }
             }
-            showNotification?.(`Node terpilih: [${node.id}] ${node.name} • ${levelLabel}`);
+            showNotification?.(`Node terpilih: [${node.id}] ${node.name} • ${level === 3 ? `Anak ke-${childNum}` : levelLabel}`);
           }}
         >
           {isSelected && (
@@ -1013,17 +1112,17 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             [{node.id}]
           </text>
 
-          {/* Badge Label Generasi (Uyut / Kakek / Ayah / Anak / Cucu) */}
+          {/* Badge Label Generasi & Nomor Urut Anak (Anak ke-1, ke-2, ke-3, dst) */}
           <text
             x={node.x + 44}
             y={node.y - 6}
             fill={strokeColor}
-            fontSize={8.5}
+            fontSize={8}
             fontWeight="bold"
             textAnchor="end"
-            className="pointer-events-none"
+            className="pointer-events-none font-sans"
           >
-            {levelLabel}
+            {level === 3 ? `Anak ke-${childNum}` : (level === 4 ? `Cucu ke-${childNum}` : (level > 0 ? `${levelLabel} ke-${childNum}` : levelLabel))}
           </text>
 
           {/* Nama Anggota */}
@@ -1052,7 +1151,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     treeHierarchy.roots.forEach(traverse);
 
     return { renderedConnections: linesList, renderedNodes: nodesList };
-  }, [treeHierarchy, lineStylePattern, lineageStructureMode, treeDirection, isLight, selectedNode, familyTree.nodes, isAdminMode]);
+  }, [treeHierarchy, lineStylePattern, lineageStructureMode, siblingCircuitMode, treeDirection, isLight, selectedNode, familyTree.nodes, isAdminMode]);
 
   // Simpan Silsilah Permanen & Lanjut Edit
   const handleSaveTreeData = () => {
@@ -2799,6 +2898,61 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 </button>
               </div>
 
+              {/* OPSI HUBUNGAN ANAK KE 1, 2, 3, 4, 5, 6, 7 dst: PARALEL / SERI / PARALEL & SERI */}
+              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
+                <span className="text-[10px] font-bold px-1.5 opacity-70 hidden sm:inline">Anak (1-7+):</span>
+                <button
+                  onClick={() => {
+                    setSiblingCircuitMode('paralel');
+                    setShowOrderSequenceLines(false);
+                    showNotification?.('🔱 Anak (1-7+): PARALEL (Tiap anak terhubung mandiri langsung ke orang tua)');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                    siblingCircuitMode === 'paralel'
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                  }`}
+                  title="Paralel: Masing-masing anak (ke-1, 2, 3, 4, 5, 6, 7, dst) memiliki jalur vertikal independen langsung dari orang tua"
+                >
+                  <Network className="w-3.5 h-3.5" />
+                  <span>Paralel</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSiblingCircuitMode('seri');
+                    setShowOrderSequenceLines(true);
+                    showNotification?.('🔀 Anak (1-7+): SERI (Sirkuit Berantai: Ayah ➔ Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7 dst)');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                    siblingCircuitMode === 'seri'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                  }`}
+                  title="Seri: Jalur berantai berurutan dari Anak Sulung ke Bungsu (Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)"
+                >
+                  <GitMerge className="w-3.5 h-3.5" />
+                  <span>Seri</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSiblingCircuitMode('paralel_seri');
+                    setShowOrderSequenceLines(true);
+                    showNotification?.('⚡ Anak (1-7+): PARALEL / SERI (Cabang Paralel + Bus Sirkuit Seri Anak 1 ➔ 7+)');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+                    siblingCircuitMode === 'paralel_seri'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+                  }`}
+                  title="Paralel / Seri: Hibrida jalur cabang pohon paralel ke semua anak DITAMBAH bus rel seri penghubung urutan kelahiran (Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Paralel / Seri</span>
+                </button>
+              </div>
+
               {/* Opsi Gaya Garis: Single, Double, Triple */}
               <button
                 onClick={() => {
@@ -2942,23 +3096,61 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 <span>{lineCurveStyle === 'curved' ? 'Garis: Melengkung' : 'Garis: Lurus'}</span>
               </button>
 
-              {/* TOMBOL GARIS URUT / SAMBUNG DARI NO 1 - SETERUSNYA */}
-              <button
-                onClick={() => {
-                  const next = !showOrderSequenceLines;
-                  setShowOrderSequenceLines(next);
-                  showNotification?.(next ? '🔗 Garis Sambung No. Urut (1 ➔ 2 ➔ 3...) Diaktifkan!' : 'Garis sambung urut dimatikan.');
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
-                  showOrderSequenceLines
-                    ? 'bg-amber-600/90 border-amber-400 text-slate-950 font-bold shadow-xs'
-                    : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
-                }`}
-                title="Hubungkan anak/saudara berurutan berdasarkan nomor urut (No. 1 ➔ No. 2 ➔ No. 3...)"
-              >
-                <GitBranch className="w-3.5 h-3.5" />
-                <span>{showOrderSequenceLines ? 'Sambung Urut: On' : 'Sambung No. Urut'}</span>
-              </button>
+              {/* OPSI HUBUNGAN ANAK / SAUDARA (1, 2, 3.. 7): PARALEL / SERI / PARALEL & SERI */}
+              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
+                <span className="text-[10px] font-bold px-1.5 opacity-70 hidden sm:inline">Anak (1-7+):</span>
+                <button
+                  onClick={() => {
+                    setSiblingCircuitMode('paralel');
+                    setShowOrderSequenceLines(false);
+                    showNotification?.('🔱 Anak (1-7+): PARALEL (Radial langsung dari pusat/induk orbit)');
+                    renderCanvas();
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
+                    siblingCircuitMode === 'paralel' && !showOrderSequenceLines
+                      ? 'bg-sky-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600' : 'text-slate-400')
+                  }`}
+                  title="Paralel: Masing-masing anak berorbit langsung mandiri"
+                >
+                  <Network className="w-3 h-3" />
+                  <span>Paralel</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSiblingCircuitMode('seri');
+                    setShowOrderSequenceLines(true);
+                    showNotification?.('🔀 Anak (1-7+): SERI (Bus Rel Berantai Antar Urutan Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)');
+                    renderCanvas();
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
+                    siblingCircuitMode === 'seri'
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600' : 'text-slate-400')
+                  }`}
+                  title="Seri: Sambungan bus berantai berurutan dari Sulung ke Bungsu"
+                >
+                  <GitMerge className="w-3 h-3" />
+                  <span>Seri</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSiblingCircuitMode('paralel_seri');
+                    setShowOrderSequenceLines(true);
+                    showNotification?.('⚡ Anak (1-7+): PARALEL / SERI (Radial Induk + Rantai Urutan Anak 1-7+)');
+                    renderCanvas();
+                  }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
+                    siblingCircuitMode === 'paralel_seri'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : (isLight ? 'text-slate-600' : 'text-slate-400')
+                  }`}
+                  title="Paralel / Seri: Garis radial induk orbit ditambah garis sambung konstelasi nomor urut (1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Paralel / Seri</span>
+                </button>
+              </div>
 
               {/* OPSI FRAME FOTO BULAT / KOTAK / SEGI 6 */}
               <button
@@ -3088,9 +3280,10 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             <div className={`absolute top-3 left-3 z-10 px-3 py-2 rounded-xl border backdrop-blur-md shadow-md pointer-events-none text-xs ${
               isLight ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-slate-900/95 border-slate-800 text-slate-200'
             }`}>
-              <div className="flex items-center gap-2 font-mono font-bold text-[11px]">
+              <div className="flex items-center gap-2 font-mono font-bold text-[11px] flex-wrap">
                 <span className="text-amber-500 font-extrabold">[Universal ID]</span>
                 <span>• Struktur: <span className="uppercase text-emerald-400 font-bold">{lineageStructureMode}</span></span>
+                <span>• Anak (1-7+): <span className="uppercase text-sky-400 font-bold">{siblingCircuitMode === 'paralel_seri' ? 'PARALEL / SERI' : siblingCircuitMode}</span></span>
                 <span className="text-[10px] text-slate-400">({lineStylePattern})</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-1 flex-wrap">
@@ -3101,7 +3294,7 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
                 <span>➔</span>
                 <span className="text-blue-400 font-bold">2. Ayah</span>
                 <span>➔</span>
-                <span className="text-emerald-400 font-bold">3. Anak</span>
+                <span className="text-emerald-400 font-bold">3. Anak (1..7+)</span>
                 <span>➔</span>
                 <span className="text-cyan-400 font-bold">4. Cucu</span>
               </div>
