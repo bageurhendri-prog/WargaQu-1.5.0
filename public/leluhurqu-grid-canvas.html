@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LeluhurQu - Grid Canvas Engine (PWA Offline)</title>
+  <meta name="description" content="Aplikasi Silsilah Spatial Grid Canvas Engine: Zero Collision, Node Shape, Dot-Notation, Cetak A0-A4 Presisi.">
+  <meta name="theme-color" content="#0d9488">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230d9488'><rect width='24' height='24' rx='6' fill='%230d9488'/><path d='M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z' fill='white'/></svg>">
+  
+  <!-- Tailwind CSS via CDN (Zero Build Tool Requirement) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* CSS Styling Khusus Cetak Presisi @media print */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .no-print, header, aside, #floating-tools, #toast {
+        display: none !important;
+      }
+      #canvas-container {
+        width: 100vw !important;
+        height: 100vh !important;
+        overflow: visible !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+      }
+      svg {
+        width: 100% !important;
+        height: 100% !important;
+      }
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased select-none h-screen w-screen flex flex-col overflow-hidden">
+
+  <!-- ================================================================= -->
+  <!-- 1. HEADER UTAMA                                                   -->
+  <!-- ================================================================= -->
+  <header class="no-print bg-slate-900/95 border-b border-slate-800 px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md shrink-0 z-30">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-700 flex items-center justify-center font-bold text-white shadow-md">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+      </div>
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <h1 class="font-extrabold text-sm tracking-wide text-white">Leluhur<span class="text-teal-400">Qu</span></h1>
+          <span class="text-[9px] bg-teal-950/80 text-teal-300 border border-teal-500/40 px-1.5 py-0.5 rounded font-mono font-bold">Grid Engine PWA</span>
+          <span class="text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/40 px-1.5 py-0.5 rounded font-mono font-bold">100% Offline</span>
+        </div>
+        <p class="text-[10px] text-slate-400 leading-none mt-0.5">Spatial Matrix • Zero Collision • Dot-Notation • A0-A4 Presisi</p>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- Cetak / Simpan PDF Presisi -->
+      <button onclick="window.print()" class="bg-teal-600 hover:bg-teal-500 active:scale-95 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-md flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        <span class="hidden sm:inline">🖨️ Cetak / PDF</span>
+        <span class="sm:hidden">PDF</span>
+      </button>
+
+      <!-- Unduh File SVG -->
+      <button onclick="downloadSVG()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition flex items-center space-x-1" title="Unduh File Vektor SVG">
+        <svg class="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        <span class="hidden md:inline">Unduh SVG</span>
+      </button>
+
+      <!-- Toggle Sidebar -->
+      <button onclick="toggleSidebar()" class="bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 p-1.5 rounded-xl transition" title="Menu Pengaturan & Input">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================================================================= -->
+  <!-- 2. WORKSPACE AREA: SVG CANVAS + SIDEBAR PANEL                     -->
+  <!-- ================================================================= -->
+  <div class="flex-1 w-full h-full relative overflow-hidden flex">
+    
+    <!-- SVG Canvas Viewport -->
+    <div id="canvas-container" class="flex-1 w-full h-full relative overflow-hidden cursor-grab active:cursor-grabbing bg-slate-950">
+      <svg id="main-svg" width="100%" height="100%" class="w-full h-full block">
+        <defs>
+          <filter id="shadow-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.3" />
+          </filter>
+          <pattern id="grid-pattern" width="200" height="160" patternUnits="userSpaceOnUse">
+            <rect width="200" height="160" fill="none" stroke="#1e293b" stroke-width="0.8" stroke-dasharray="4,4" opacity="0.6"/>
+            <circle cx="100" cy="80" r="1.5" fill="#334155" />
+          </pattern>
+        </defs>
+
+        <g id="viewport-group" transform="translate(80, 80) scale(0.85)">
+          <!-- Lembar Kertas Cetak Overlay -->
+          <g id="paper-layer"></g>
+
+          <!-- Kisi Matrix Spatial -->
+          <rect id="grid-matrix-rect" x="0" y="0" width="3600" height="2400" fill="url(#grid-pattern)" />
+
+          <!-- Baris Generasi Headers -->
+          <g id="row-headers-layer"></g>
+
+          <!-- Lapisan Garis Konektor (Connector Lines) -->
+          <g id="lines-layer"></g>
+
+          <!-- Ghost Snap Target (Saat Dragging) -->
+          <g id="ghost-layer"></g>
+
+          <!-- Lapisan Node Anggota (Nodes Layer) -->
+          <g id="nodes-layer"></g>
+        </g>
+      </svg>
+
+      <!-- Floating Quick Tools (Bottom Right) -->
+      <div id="floating-tools" class="no-print absolute bottom-6 right-6 z-20 flex flex-col space-y-2 shadow-2xl">
+        <div class="flex flex-col bg-slate-900/90 border border-slate-700/80 rounded-2xl p-1 backdrop-blur-md">
+          <button onclick="handleZoom(1.15)" class="p-2 hover:bg-teal-500 hover:text-white rounded-xl transition text-slate-300" title="Zoom In">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          </button>
+          <button onclick="handleZoom(0.85)" class="p-2 hover:bg-teal-500 hover:text-white rounded-xl transition text-slate-300" title="Zoom Out">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+          </button>
+          <div class="h-px w-full my-0.5 bg-slate-800"></div>
+          <button onclick="resetView()" class="p-2 hover:bg-teal-500 hover:text-white rounded-xl transition text-slate-300" title="Reset Posisi & Zoom">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Panel (Pengaturan, Input Batch, Zero Collision) -->
+    <aside id="sidebar-panel" class="no-print w-80 sm:w-88 h-full bg-slate-900/95 border-l border-slate-800 flex flex-col z-20 shrink-0 backdrop-blur-md transition-all duration-200">
+      <!-- Tab Header Sidebar -->
+      <div class="p-2 border-b border-slate-800 bg-slate-950/50 flex space-x-1 text-xs">
+        <button onclick="switchTab('batch')" id="tab-btn-batch" class="flex-1 py-1.5 rounded-lg font-bold bg-teal-600 text-white">⚡ Input Batch</button>
+        <button onclick="switchTab('engine')" id="tab-btn-engine" class="flex-1 py-1.5 rounded-lg font-bold text-slate-400 hover:bg-slate-800">⚙️ Engine</button>
+        <button onclick="switchTab('about')" id="tab-btn-about" class="flex-1 py-1.5 rounded-lg font-bold text-slate-400 hover:bg-slate-800">ℹ️ Info</button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll text-xs">
+        
+        <!-- ========================================== -->
+        <!-- TAB 1: INPUT MASSAL (BATCH) & PENOMORAN    -->
+        <!-- ========================================== -->
+        <div id="tab-content-batch" class="space-y-4">
+          <div>
+            <h3 class="font-bold text-sm text-teal-400 flex items-center space-x-1.5">
+              <span>⚡ Input Massal (Fast Batch)</span>
+            </h3>
+            <p class="text-[11px] text-slate-400 mt-1">Masukkan nama-nama anggota dipisah koma. Matriks otomatis menyusun posisi sel bebas benturan dan menghitung penomoran berantai (1, 1.1, 1.1.2).</p>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Orang Tua / Induk</label>
+            <select id="batch-parent-select" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-teal-500 font-semibold"></select>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Daftar Nama (Pisah Koma)</label>
+            <textarea id="batch-input-area" rows="4" placeholder="Contoh: Anak Pertama, Anak Kedua, Anak Ketiga..." class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-teal-500 text-xs font-mono"></textarea>
+          </div>
+
+          <button onclick="processBatchInput()" class="w-full bg-teal-600 hover:bg-teal-500 active:scale-95 text-white font-extrabold py-2.5 rounded-xl shadow-md transition cursor-pointer flex items-center justify-center space-x-1.5">
+            <span>⚡ Tambahkan &amp; Susun Matriks</span>
+          </button>
+
+          <!-- Node Selection Detail Box -->
+          <div id="selected-node-box" class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 space-y-2">
+            <span class="font-bold text-[11px] text-slate-300 block">Node Terpilih:</span>
+            <p id="selected-node-desc" class="text-[10px] text-slate-400">Klik salah satu node di kanvas untuk melihat detail, menggeser atau menghapus.</p>
+            <div id="selected-node-actions" class="hidden flex items-center space-x-2 pt-1">
+              <button onclick="deleteSelectedNode()" class="flex-1 bg-rose-600/90 hover:bg-rose-600 text-white py-1.5 rounded-lg font-bold text-[11px] transition">Hapus Node</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: PENGATURAN ENGINE & CETAK A0-A4     -->
+        <!-- ========================================== -->
+        <div id="tab-content-engine" class="hidden space-y-4">
+          <!-- 1. BENTUK NODE -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">1. Bentuk Objek Node</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setNodeShape('circle')" id="shape-circle-btn" class="p-2.5 rounded-xl border border-teal-500 bg-teal-600 text-white text-center font-bold text-[11px]">
+                <span class="block text-base">⭕</span> Lingkaran
+              </button>
+              <button onclick="setNodeShape('hexagon')" id="shape-hexagon-btn" class="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-center font-bold text-[11px]">
+                <span class="block text-base">⬡</span> Segi Enam
+              </button>
+              <button onclick="setNodeShape('card')" id="shape-card-btn" class="p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-center font-bold text-[11px]">
+                <span class="block text-base">🗂️</span> Kotak Card
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. JENIS ALUR GARIS -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">2. Jenis Alur Garis (Connector)</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setLineType('bezier')" id="line-bezier-btn" class="p-2 rounded-xl border border-teal-500 bg-teal-600 text-white text-center font-bold text-[11px]">
+                Paralel/Tree
+              </button>
+              <button onclick="setLineType('straight')" id="line-straight-btn" class="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-center font-bold text-[11px]">
+                Garis Seri
+              </button>
+              <button onclick="setLineType('orthogonal')" id="line-orthogonal-btn" class="p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-center font-bold text-[11px]">
+                Garis Siku
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. UKURAN KANVAS CETAK A0-A4 -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">3. Ukuran Cetak Presisi (A0–A4)</label>
+            <select id="paper-select" onchange="setPaperSize(this.value)" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-teal-500 font-semibold">
+              <option value="responsive">Auto-Fit Responsive (Tak Terbatas)</option>
+              <option value="a4-portrait">A4 Portrait (210 × 297 mm)</option>
+              <option value="a4-landscape">A4 Landscape (297 × 210 mm)</option>
+              <option value="a3-portrait">A3 Portrait (297 × 420 mm)</option>
+              <option value="a3-landscape">A3 Landscape (420 × 297 mm)</option>
+              <option value="a2-landscape">A2 Landscape (594 × 420 mm)</option>
+              <option value="a1-landscape">A1 Landscape (841 × 594 mm)</option>
+              <option value="a0-landscape">A0 Super Poster (1189 × 841 mm)</option>
+            </select>
+          </div>
+
+          <!-- 4. TOGGLE GRID MATRIX -->
+          <div class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 flex items-center justify-between">
+            <span class="font-bold text-[11px]">Tampilkan Kisi Matrix Spasial</span>
+            <input type="checkbox" id="grid-toggle" checked onchange="toggleGridMatrix(this.checked)" class="w-4 h-4 accent-teal-500 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: INFORMASI ENGINE & PANDUAN PWA      -->
+        <!-- ========================================== -->
+        <div id="tab-content-about" class="hidden space-y-3.5 text-[11px] text-slate-300">
+          <h3 class="font-bold text-sm text-teal-400">📐 Matrix Spatial Engine</h3>
+          <p><strong>Zero Collision:</strong> Membatasi tiap sel matriks (Row x Column) agar node silsilah tidak pernah tumpang tindih.</p>
+          <p><strong>Drag &amp; Snap:</strong> Geser node dengan sentuhan atau mouse, posisi akan otomatis mengunci presisi ke koordinat grid.</p>
+          <p><strong>PWA Offline:</strong> Aplikasi ini berjalan 100% di browser tanpa koneksi internet dan tanpa dependensi compiler.</p>
+          <div class="pt-2">
+            <button onclick="resetToDefaultData()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl font-bold">
+              🔄 Muat Ulang Data Awal
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-teal-600 text-white font-bold text-xs px-4 py-2 rounded-2xl shadow-2xl opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+  <!-- ================================================================= -->
+  <!-- 3. ENGINE JAVASCRIPT ES6+ (VANILLA NATIVE - ZERO BUILD TOOL)     -->
+  <!-- ================================================================= -->
+  <script>
+    // State Aplikasi
+    const CELL_W = 200;
+    const CELL_H = 160;
+    const OFFSET_X = 120;
+    const OFFSET_Y = 120;
+
+    let currentShape = 'circle';
+    let currentLineType = 'bezier';
+    let currentPaper = 'responsive';
+    let showGrid = true;
+    let selectedNodeId = null;
+
+    // Viewport Pan/Zoom
+    let zoom = 0.85;
+    let pan = { x: 80, y: 80 };
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+
+    // Dragging Node
+    let draggingNodeId = null;
+    let dragOffset = { x: 0, y: 0 };
+    let ghostTarget = null;
+
+    // Data Silsilah Awal
+    const DEFAULT_DATA = [
+      { id: 'n1', name: 'Kyai Abdul Ghani (Uyut)', dot: '1', row: 0, col: 3, gender: 'L', color: '#f59e0b', role: 'Leluhur Utama' },
+      { id: 'n2', name: 'Kakek Ahmad', dot: '1.1', row: 1, col: 1, parentId: 'n1', gender: 'L', color: '#10b981', role: 'Kakek 1' },
+      { id: 'n3', name: 'Kakek Hasan', dot: '1.2', row: 1, col: 3, parentId: 'n1', gender: 'L', color: '#38bdf8', role: 'Kakek 2 (Nasab)' },
+      { id: 'n4', name: 'Nenek Maryam', dot: '1.3', row: 1, col: 5, parentId: 'n1', gender: 'P', color: '#ec4899', role: 'Nenek 3' },
+      { id: 'n5', name: 'Ayah Hendra Sukma', dot: '1.2.1', row: 2, col: 3, parentId: 'n3', gender: 'L', color: '#06b6d4', role: 'Ayah Kandung', spouse: 'Ibu Ratna' },
+      { id: 'n6', name: 'Hendri Bageur (SAYA)', dot: '1.2.1.1', row: 3, col: 3, parentId: 'n5', gender: 'L', color: '#eab308', role: 'Pengguna', spouse: 'Siti Nurhaliza' },
+      { id: 'n7', name: 'Rizky Pratama', dot: '1.2.1.1.1', row: 4, col: 2.5, parentId: 'n6', gender: 'L', color: '#14b8a6', role: 'Anak Sulung' },
+      { id: 'n8', name: 'Aisyah Putri', dot: '1.2.1.1.2', row: 4, col: 3.5, parentId: 'n6', gender: 'P', color: '#f43f5e', role: 'Anak Bungsu' }
+    ];
+
+    let nodes = JSON.parse(localStorage.getItem('leluhurqu_matrix_nodes')) || DEFAULT_DATA;
+
+    function saveNodes() {
+      localStorage.setItem('leluhurqu_matrix_nodes', JSON.stringify(nodes));
+    }
+
+    // Koordinat Piksel Real
+    function getCoord(col, row) {
+      return {
+        x: OFFSET_X + col * CELL_W,
+        y: OFFSET_Y + row * CELL_H
+      };
+    }
+
+    // Zero-Collision Matrix Solver
+    function resolveCollision(targetRow, targetCol, excludeId) {
+      let resolvedCol = targetCol;
+      const occupied = nodes
+        .filter(n => n.id !== excludeId && n.row === targetRow)
+        .map(n => n.col);
+
+      while (occupied.includes(resolvedCol)) {
+        resolvedCol += 1;
+      }
+      return resolvedCol;
+    }
+
+    // Penomoran Hirarkis Berantai Otomatis (Dot-Notation)
+    function recalculateDotNotations() {
+      const roots = nodes.filter(n => !n.parentId).sort((a, b) => a.col - b.col);
+      const map = new Map();
+
+      function assignDot(node, prefix) {
+        node.dot = prefix;
+        map.set(node.id, node);
+        const children = nodes.filter(n => n.parentId === node.id).sort((a, b) => a.col - b.col);
+        children.forEach((c, idx) => {
+          assignDot(c, `${prefix}.${idx + 1}`);
+        });
+      }
+
+      roots.forEach((r, idx) => {
+        assignDot(r, `${idx + 1}`);
+      });
+      saveNodes();
+    }
+
+    // Render Utama Kanvas SVG
+    function render() {
+      const linesLayer = document.getElementById('lines-layer');
+      const nodesLayer = document.getElementById('nodes-layer');
+      const rowHeadersLayer = document.getElementById('row-headers-layer');
+      const ghostLayer = document.getElementById('ghost-layer');
+      const paperLayer = document.getElementById('paper-layer');
+
+      linesLayer.innerHTML = '';
+      nodesLayer.innerHTML = '';
+      rowHeadersLayer.innerHTML = '';
+      ghostLayer.innerHTML = '';
+      paperLayer.innerHTML = '';
+
+      // 1. Kertas Cetak Overlay
+      if (currentPaper !== 'responsive') {
+        const dims = {
+          'a4-portrait': { w: 794, h: 1123, name: 'A4 Portrait' },
+          'a4-landscape': { w: 1123, h: 794, name: 'A4 Landscape' },
+          'a3-landscape': { w: 1587, h: 1123, name: 'A3 Landscape' },
+          'a2-landscape': { w: 2245, h: 1587, name: 'A2 Landscape' },
+          'a1-landscape': { w: 3179, h: 2245, name: 'A1 Landscape' },
+          'a0-landscape': { w: 4494, h: 3179, name: 'A0 Super Poster' }
+        }[currentPaper] || { w: 1123, h: 794, name: currentPaper };
+
+        paperLayer.innerHTML = `
+          <rect x="20" y="20" width="${dims.w}" height="${dims.h}" fill="#0f172a" stroke="#0d9488" stroke-width="3" stroke-dasharray="8,6" rx="8"/>
+          <text x="50" y="70" fill="#334155" font-size="24" font-weight="900" font-family="monospace">LEMBAR CETAK ${dims.name.toUpperCase()}</text>
+        `;
+      }
+
+      // 2. Baris Generasi
+      if (showGrid) {
+        for (let r = 0; r < 7; r++) {
+          const y = OFFSET_Y + r * CELL_H;
+          rowHeadersLayer.innerHTML += `
+            <g transform="translate(20, ${y})">
+              <rect x="0" y="-12" width="75" height="24" rx="6" fill="#1e293b" opacity="0.8"/>
+              <text x="37" y="4" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="bold" font-family="monospace">Gen ${r+1}</text>
+            </g>
+          `;
+        }
+      }
+
+      // 3. Garis Konektor
+      nodes.forEach(child => {
+        if (!child.parentId) return;
+        const parent = nodes.find(n => n.id === child.parentId);
+        if (!parent) return;
+
+        const p = getCoord(parent.col, parent.row);
+        const c = getCoord(child.col, child.row);
+
+        const sy = p.y + (currentShape === 'card' ? 44 : 36);
+        const ey = c.y - (currentShape === 'card' ? 44 : 36);
+
+        let d = '';
+        if (currentLineType === 'straight') {
+          d = `M ${p.x} ${sy} L ${c.x} ${ey}`;
+        } else if (currentLineType === 'bezier') {
+          const my = (sy + ey) / 2;
+          d = `M ${p.x} ${sy} C ${p.x} ${my}, ${c.x} ${my}, ${c.x} ${ey}`;
+        } else {
+          const my = (sy + ey) / 2;
+          d = `M ${p.x} ${sy} L ${p.x} ${my} L ${c.x} ${my} L ${c.x} ${ey}`;
+        }
+
+        const color = child.color || '#14b8a6';
+        linesLayer.innerHTML += `
+          <g>
+            <path d="${d}" fill="none" stroke="${color}" stroke-width="5" stroke-opacity="0.25" stroke-linecap="round"/>
+            <path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-opacity="0.9" stroke-linecap="round"/>
+            <circle cx="${p.x}" cy="${sy}" r="3" fill="${color}"/>
+            <circle cx="${c.x}" cy="${ey}" r="3" fill="${color}"/>
+          </g>
+        `;
+      });
+
+      // 4. Ghost Snap (Saat Drag)
+      if (ghostTarget) {
+        ghostLayer.innerHTML = `
+          <g transform="translate(${ghostTarget.x}, ${ghostTarget.y})">
+            <rect x="-60" y="-40" width="120" height="80" rx="12" fill="none" stroke="#14b8a6" stroke-width="2.5" stroke-dasharray="6,4"/>
+            <text text-anchor="middle" y="4" fill="#14b8a6" font-size="10" font-weight="bold" font-family="monospace">Snap: R${ghostTarget.row+1}:C${ghostTarget.col+1}</text>
+          </g>
+        `;
+      }
+
+      // 5. Node Objek
+      nodes.forEach(node => {
+        const p = getCoord(node.col, node.row);
+        const color = node.color || '#14b8a6';
+        const isSel = selectedNodeId === node.id;
+        const strokeW = isSel ? '4' : '2.5';
+        const initials = node.name.split(' ').map(s=>s[0]).slice(0, 2).join('');
+        const shortName = node.name.length > 18 ? node.name.slice(0, 16) + '…' : node.name;
+
+        let nodeSvg = '';
+
+        if (currentShape === 'circle') {
+          nodeSvg = `
+            <g class="node-item" data-id="${node.id}" transform="translate(${p.x}, ${p.y})" style="cursor: grab;">
+              <circle r="40" fill="#0f172a" stroke="${color}" stroke-width="${strokeW}" filter="url(#shadow-filter)"/>
+              <circle r="34" fill="#1e293b" stroke="${color}" stroke-width="1" stroke-dasharray="2,2"/>
+              <g transform="translate(0, -40)">
+                <rect x="-26" y="-9" width="52" height="16" rx="8" fill="${color}"/>
+                <text text-anchor="middle" y="3" fill="#ffffff" font-size="9" font-weight="bold" font-family="monospace">${node.dot}</text>
+              </g>
+              <text text-anchor="middle" y="4" fill="#f8fafc" font-size="12" font-weight="900">${initials}</text>
+              <text text-anchor="middle" y="54" fill="#e2e8f0" font-size="11" font-weight="bold">${shortName}</text>
+              <text text-anchor="middle" y="68" fill="${color}" font-size="9" font-weight="600">${node.role || 'Anggota'}</text>
+            </g>
+          `;
+        } else if (currentShape === 'hexagon') {
+          nodeSvg = `
+            <g class="node-item" data-id="${node.id}" transform="translate(${p.x}, ${p.y})" style="cursor: grab;">
+              <polygon points="0,-44 38,-22 38,22 0,44 -38,22 -38,-22" fill="#0f172a" stroke="${color}" stroke-width="${strokeW}" filter="url(#shadow-filter)"/>
+              <polygon points="0,-36 31,-18 31,18 0,36 -31,18 -31,-18" fill="#1e293b" stroke="${color}" stroke-width="1" stroke-dasharray="3,2"/>
+              <g transform="translate(0, -42)">
+                <rect x="-24" y="-9" width="48" height="16" rx="8" fill="${color}"/>
+                <text text-anchor="middle" y="3" fill="#ffffff" font-size="9" font-weight="bold" font-family="monospace">${node.dot}</text>
+              </g>
+              <text text-anchor="middle" y="5" fill="#f8fafc" font-size="12" font-weight="900">${initials}</text>
+              <text text-anchor="middle" y="56" fill="#e2e8f0" font-size="11" font-weight="bold">${shortName}</text>
+              <text text-anchor="middle" y="69" fill="${color}" font-size="9" font-weight="600">${node.role || 'Anggota'}</text>
+            </g>
+          `;
+        } else {
+          // Card Style
+          nodeSvg = `
+            <g class="node-item" data-id="${node.id}" transform="translate(${p.x - 75}, ${p.y - 42})" style="cursor: grab;">
+              <rect width="150" height="84" rx="12" fill="#0f172a" stroke="${color}" stroke-width="${strokeW}" filter="url(#shadow-filter)"/>
+              <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 138 0 C 144.63 0 150 5.37 150 12 L 150 24 L 0 24 Z" fill="${color}"/>
+              <text x="10" y="16" fill="#ffffff" font-size="10" font-weight="bold" font-family="monospace">${node.dot}</text>
+              <text x="140" y="16" text-anchor="end" fill="#ffffff" font-size="9">R${node.row+1}:C${node.col+1}</text>
+              <text x="10" y="44" fill="#f8fafc" font-size="11" font-weight="bold">${shortName}</text>
+              <text x="10" y="58" fill="${color}" font-size="9" font-weight="semibold">${node.role || 'Anggota'}</text>
+              <text x="10" y="72" fill="#94a3b8" font-size="8.5">${node.spouse ? '💍 ' + node.spouse : 'Hidup'}</text>
+            </g>
+          `;
+        }
+
+        nodesLayer.innerHTML += nodeSvg;
+      });
+
+      // Update Parent Select Options
+      updateParentSelect();
+    }
+
+    function updateTransform() {
+      const g = document.getElementById('viewport-group');
+      g.setAttribute('transform', `translate(${pan.x}, ${pan.y}) scale(${zoom})`);
+    }
+
+    function updateParentSelect() {
+      const select = document.getElementById('batch-parent-select');
+      select.innerHTML = nodes.map(n => `<option value="${n.id}">[${n.dot}] ${n.name} (Baris ${n.row+1})</option>`).join('');
+    }
+
+    // -------------------------------------------------------------
+    // INTERAKSI POINTER (PAN, ZOOM, DRAG & SNAP TO GRID)
+    // -------------------------------------------------------------
+    const container = document.getElementById('canvas-container');
+
+    container.addEventListener('pointerdown', e => {
+      const nodeEl = e.target.closest('.node-item');
+      if (nodeEl) {
+        const id = nodeEl.getAttribute('data-id');
+        const node = nodes.find(n => n.id === id);
+        if (!node) return;
+
+        selectedNodeId = id;
+        draggingNodeId = id;
+        const p = getCoord(node.col, node.row);
+        dragOffset = {
+          x: e.clientX - (p.x * zoom + pan.x),
+          y: e.clientY - (p.y * zoom + pan.y)
+        };
+        ghostTarget = { x: p.x, y: p.y, row: node.row, col: node.col };
+        updateSelectionUI(node);
+        render();
+        return;
+      }
+
+      isPanning = true;
+      panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+    });
+
+    window.addEventListener('pointermove', e => {
+      if (draggingNodeId) {
+        const cx = (e.clientX - dragOffset.x - pan.x) / zoom;
+        const cy = (e.clientY - dragOffset.y - pan.y) / zoom;
+
+        const approxCol = Math.max(0, Math.round((cx - OFFSET_X) / CELL_W));
+        const approxRow = Math.max(0, Math.round((cy - OFFSET_Y) / CELL_H));
+
+        const snap = getCoord(approxCol, approxRow);
+        ghostTarget = { x: snap.x, y: snap.y, row: approxRow, col: approxCol };
+        render();
+        return;
+      }
+
+      if (isPanning) {
+        pan.x = e.clientX - panStart.x;
+        pan.y = e.clientY - panStart.y;
+        updateTransform();
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      if (draggingNodeId && ghostTarget) {
+        const targetNode = nodes.find(n => n.id === draggingNodeId);
+        if (targetNode) {
+          const safeCol = resolveCollision(ghostTarget.row, ghostTarget.col, draggingNodeId);
+          targetNode.row = ghostTarget.row;
+          targetNode.col = safeCol;
+          recalculateDotNotations();
+          showToast(`Snap Matrix: Baris ${ghostTarget.row+1}, Kolom ${safeCol+1}`);
+        }
+        draggingNodeId = null;
+        ghostTarget = null;
+        render();
+        return;
+      }
+
+      isPanning = false;
+    });
+
+    container.addEventListener('wheel', e => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      zoom = Math.min(2.5, Math.max(0.25, zoom * factor));
+      updateTransform();
+    }, { passive: false });
+
+    function handleZoom(factor) {
+      zoom = Math.min(2.5, Math.max(0.25, zoom * factor));
+      updateTransform();
+    }
+
+    function resetView() {
+      zoom = 0.85;
+      pan = { x: 80, y: 80 };
+      updateTransform();
+      showToast('Posisi & Zoom diatur ulang');
+    }
+
+    // -------------------------------------------------------------
+    // INPUT BATCH MASSAL
+    // -------------------------------------------------------------
+    function processBatchInput() {
+      const area = document.getElementById('batch-input-area');
+      const text = area.value.trim();
+      if (!text) {
+        showToast('Ketik nama-nama anggota dipisah koma');
+        return;
+      }
+
+      const names = text.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+      const parentId = document.getElementById('batch-parent-select').value;
+      const parent = nodes.find(n => n.id === parentId);
+      const targetRow = parent ? parent.row + 1 : 0;
+      let startCol = parent ? Math.max(0, parent.col - Math.floor(names.length / 2)) : 0;
+
+      names.forEach((name, idx) => {
+        const safeCol = resolveCollision(targetRow, startCol + idx);
+        nodes.push({
+          id: 'n_' + Date.now() + '_' + idx,
+          name,
+          dot: '',
+          row: targetRow,
+          col: safeCol,
+          parentId: parent ? parent.id : undefined,
+          color: ['#10b981', '#38bdf8', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4'][idx % 6],
+          role: `Generasi ${targetRow+1}`
+        });
+      });
+
+      recalculateDotNotations();
+      render();
+      area.value = '';
+      showToast(`⚡ ${names.length} anggota ditambahkan ke matriks!`);
+    }
+
+    function updateSelectionUI(node) {
+      const desc = document.getElementById('selected-node-desc');
+      const actions = document.getElementById('selected-node-actions');
+      desc.innerHTML = `<strong class="text-teal-400">[${node.dot}] ${node.name}</strong><br>Posisi: Baris ${node.row+1}, Kolom ${node.col+1}`;
+      actions.classList.remove('hidden');
+    }
+
+    function deleteSelectedNode() {
+      if (!selectedNodeId) return;
+      nodes = nodes.filter(n => n.id !== selectedNodeId);
+      selectedNodeId = null;
+      document.getElementById('selected-node-desc').innerText = 'Pilih salah satu node di kanvas.';
+      document.getElementById('selected-node-actions').classList.add('hidden');
+      recalculateDotNotations();
+      render();
+      showToast('Node berhasil dihapus.');
+    }
+
+    // -------------------------------------------------------------
+    // ENGINE CONTROLS (SHAPE, LINE, PAPER SIZE)
+    // -------------------------------------------------------------
+    function setNodeShape(shape) {
+      currentShape = shape;
+      ['circle', 'hexagon', 'card'].forEach(s => {
+        const btn = document.getElementById(`shape-${s}-btn`);
+        if (s === shape) {
+          btn.className = 'p-2.5 rounded-xl border border-teal-500 bg-teal-600 text-white text-center font-bold text-[11px]';
+        } else {
+          btn.className = 'p-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-center font-bold text-[11px]';
+        }
+      });
+      render();
+      showToast(`Bentuk node: ${shape}`);
+    }
+
+    function setLineType(type) {
+      currentLineType = type;
+      ['bezier', 'straight', 'orthogonal'].forEach(t => {
+        const btn = document.getElementById(`line-${t}-btn`);
+        if (t === type) {
+          btn.className = 'p-2 rounded-xl border border-teal-500 bg-teal-600 text-white text-center font-bold text-[11px]';
+        } else {
+          btn.className = 'p-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 text-center font-bold text-[11px]';
+        }
+      });
+      render();
+      showToast(`Alur garis: ${type}`);
+    }
+
+    function setPaperSize(size) {
+      currentPaper = size;
+      render();
+      showToast(`Ukuran kanvas cetak: ${size}`);
+    }
+
+    function toggleGridMatrix(val) {
+      showGrid = val;
+      document.getElementById('grid-matrix-rect').style.display = val ? 'block' : 'none';
+      render();
+    }
+
+    function switchTab(tab) {
+      ['batch', 'engine', 'about'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`tab-content-${t}`);
+        if (t === tab) {
+          btn.className = 'flex-1 py-1.5 rounded-lg font-bold bg-teal-600 text-white';
+          content.classList.remove('hidden');
+        } else {
+          btn.className = 'flex-1 py-1.5 rounded-lg font-bold text-slate-400 hover:bg-slate-800';
+          content.classList.add('hidden');
+        }
+      });
+    }
+
+    function toggleSidebar() {
+      const panel = document.getElementById('sidebar-panel');
+      panel.classList.toggle('hidden');
+    }
+
+    function resetToDefaultData() {
+      if (confirm('Muat ulang data silsilah contoh default?')) {
+        nodes = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        recalculateDotNotations();
+        render();
+        showToast('Data default silsilah berhasil dimuat.');
+      }
+    }
+
+    function downloadSVG() {
+      const svg = document.getElementById('main-svg');
+      const data = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `LeluhurQu_GridEngine_${Date.now()}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('File SVG berhasil diunduh!');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.remove('opacity-0');
+      t.classList.add('opacity-100');
+      clearTimeout(window._toastTimeout);
+      window._toastTimeout = setTimeout(() => {
+        t.classList.remove('opacity-100');
+        t.classList.add('opacity-0');
+      }, 2400);
+    }
+
+    // -------------------------------------------------------------
+    // SERVICE WORKER REGISTRATION (100% OFFLINE-READY PWA)
+    // -------------------------------------------------------------
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swBlob = new Blob([`
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('activate', e => self.clients.claim());
+          self.addEventListener('fetch', e => {
+            e.respondWith(
+              caches.match(e.request).then(res => res || fetch(e.request).catch(() => caches.match(e.request)))
+            );
+          });
+        `], { type: 'application/javascript' });
+        
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+          .catch(() => {});
+      });
+    }
+
+    // Inisialisasi awal
+    recalculateDotNotations();
+    render();
+  </script>
+</body>
+</html>

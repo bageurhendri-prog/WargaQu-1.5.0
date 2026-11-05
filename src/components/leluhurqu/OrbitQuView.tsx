@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ZoomIn,
   ZoomOut,
@@ -31,14 +31,9 @@ import {
   Circle,
   Upload,
   Sun,
-  Moon,
-  Network,
-  Layers,
-  GitMerge,
-  ArrowUp,
-  ArrowDown,
-  Share2
+  Moon
 } from 'lucide-react';
+import { PohonQuView } from './PohonQuView';
 
 export interface OrbitNode {
   id: string;
@@ -94,210 +89,6 @@ export interface LedgerLog {
   time: string;
   action: string;
   text: string;
-}
-
-// ----------------------------------------------------------------------------
-// DATA & STRUKTUR NOTASI BATCH (UNIVERSAL ID & BOUNDING BOX ENGINE)
-// ----------------------------------------------------------------------------
-export interface BatchFamilyItem {
-  id: string; // e.g. "0", "0.1", "0.1.1", "0.1.1.1"
-  name: string;
-  role?: string;
-  isUser?: boolean;
-  gender?: 'L' | 'P';
-  originalNodeId?: string;
-}
-
-export interface BatchTreeNode extends BatchFamilyItem {
-  children: BatchTreeNode[];
-  width: number;
-  x: number;
-  y: number;
-}
-
-// 1. DATA SILSILAH BERBASIS BATCH DOT NOTATION (Universal ID - Kode Pengguna)
-// Mendukung lengkap 5 Generasi & Urutan Anak 1, 2, 3, 4, 5, 6, 7 dst: Uyut -> Kakek -> Ayah -> Anak (1-7) -> Cucu
-export const DEFAULT_BATCH_FAMILY_DATA: BatchFamilyItem[] = [
-  { id: "0", name: "Uyut (Akar)", role: "Akar Leluhur (Gen 0)", gender: "L" },
-  { id: "0.1", name: "Kakek A (Sulung)", role: "Kakek Sulung (Gen 1)", gender: "L" },
-  { id: "0.2", name: "Kakek B (Bontot)", role: "Kakek Bungsu (Gen 1)", gender: "L" },
-  { id: "0.1.1", name: "Ayah (Anak 7 Cucu)", role: "Ayah Kandung (Gen 2)", gender: "L" },
-  { id: "0.1.2", name: "Paman A", role: "Paman (Gen 2)", gender: "L" },
-  { id: "0.2.1", name: "Bibi (Single)", role: "Bibi (Gen 2)", gender: "P" },
-  { id: "0.1.1.1", name: "User (Kang Hendri)", role: "Anak ke-1 (Sulung - Ego)", isUser: true, gender: "L" },
-  { id: "0.1.1.2", name: "Adik 1", role: "Anak ke-2", gender: "L" },
-  { id: "0.1.1.3", name: "Adik 2", role: "Anak ke-3", gender: "P" },
-  { id: "0.1.1.4", name: "Adik 3", role: "Anak ke-4", gender: "L" },
-  { id: "0.1.1.5", name: "Adik 4", role: "Anak ke-5", gender: "P" },
-  { id: "0.1.1.6", name: "Adik 5", role: "Anak ke-6", gender: "L" },
-  { id: "0.1.1.7", name: "Adik 6 (Bontot)", role: "Anak ke-7 (Bungsu)", gender: "L" },
-  { id: "0.1.1.1.1", name: "Cucu 1 (Putra User)", role: "Cucu ke-1 (Sulung)", gender: "L" },
-  { id: "0.1.1.1.2", name: "Cucu 2 (Putri User)", role: "Cucu ke-2 (Bungsu)", gender: "P" }
-];
-
-// Config Warna Jalur per Level Generasi
-export const BATCH_LEVEL_COLORS: Record<number, string> = {
-  0: "#f97316", // Uyut (Oranye)
-  1: "#a855f7", // Kakek/Nenek (Ungu)
-  2: "#3b82f6", // Ayah/Ibu/Paman (Biru)
-  3: "#10b981", // Anak/User (Hijau)
-  4: "#06b6d4", // Cucu (Cyan)
-  5: "#ec4899"  // Cicit (Pink)
-};
-
-// Label Generasi Silsilah (Uyut -> Kakek -> Ayah -> Anak -> Cucu)
-export const BATCH_LEVEL_LABELS: Record<number, string> = {
-  0: "Uyut",
-  1: "Kakek",
-  2: "Ayah",
-  3: "Anak",
-  4: "Cucu",
-  5: "Cicit"
-};
-
-// Helper konversi data rasi orbit ke Batch Dot Notation
-export function convertOrbitNodesToBatchData(
-  nodes: OrbitNode[],
-  quadrantFilter: 'all' | 'Q1' | 'Q2' | 'Q3' | 'Q4' = 'Q1'
-): BatchFamilyItem[] {
-  const filtered = quadrantFilter === 'all'
-    ? nodes
-    : nodes.filter(n => (n.quadrant || 'Q1') === quadrantFilter);
-
-  if (filtered.length === 0) return DEFAULT_BATCH_FAMILY_DATA;
-
-  const idMap = new Map<string, OrbitNode>();
-  filtered.forEach(n => idMap.set(n.id, n));
-
-  const childrenMap = new Map<string, OrbitNode[]>();
-  const rootNodes: OrbitNode[] = [];
-
-  filtered.forEach(n => {
-    if (!n.parentId || !idMap.has(n.parentId) || n.gen === -3) {
-      rootNodes.push(n);
-    } else {
-      if (!childrenMap.has(n.parentId)) {
-        childrenMap.set(n.parentId, []);
-      }
-      childrenMap.get(n.parentId)!.push(n);
-    }
-  });
-
-  const result: BatchFamilyItem[] = [];
-
-  const assignBatchId = (node: OrbitNode, prefix: string) => {
-    result.push({
-      id: prefix,
-      name: node.name,
-      isUser: node.isUser || node.name.includes("User"),
-      role: node.role || node.order,
-      gender: node.gender,
-      originalNodeId: node.id
-    });
-
-    const children = childrenMap.get(node.id) || [];
-    children.sort((a, b) => {
-      const na = parseInt((a.order || '').match(/\d+/)?.[0] || '0', 10);
-      const nb = parseInt((b.order || '').match(/\d+/)?.[0] || '0', 10);
-      return na - nb;
-    });
-
-    children.forEach((child, idx) => {
-      assignBatchId(child, `${prefix}.${idx + 1}`);
-    });
-  };
-
-  rootNodes.forEach((root, rootIdx) => {
-    assignBatchId(root, rootIdx === 0 ? "0" : `${rootIdx}`);
-  });
-
-  return result.length > 0 ? result : DEFAULT_BATCH_FAMILY_DATA;
-}
-
-// 3. KALKULASI KAPLING BEBAS TABRAKAN (BOUNDING BOX & TOPOLOGY MATH ENGINE)
-// Mendukung Opsi Struktur: 'paralel' (menyebar), 'seri' (bus rel sirkuit 90°), 'linier' (poros lurus tegas)
-export function buildTreeHierarchyEngine(
-  data: BatchFamilyItem[],
-  direction: 'bottom-up' | 'top-down' = 'bottom-up',
-  structureMode: 'paralel' | 'seri' | 'linier' = 'paralel'
-) {
-  const map: Record<string, BatchTreeNode> = {};
-  const roots: BatchTreeNode[] = [];
-
-  data.forEach(item => {
-    map[item.id] = { ...item, children: [], width: 0, x: 0, y: 0 };
-  });
-
-  data.forEach(item => {
-    const parts = item.id.split('.');
-    if (parts.length === 1) {
-      roots.push(map[item.id]);
-    } else {
-      const parentId = parts.slice(0, -1).join('.');
-      if (map[parentId]) {
-        map[parentId].children.push(map[item.id]);
-      } else {
-        roots.push(map[item.id]);
-      }
-    }
-  });
-
-  // Hitung Lebar Kapling Rekursif (Anti Numpuk)
-  function calculateSubtreeWidth(node: BatchTreeNode): number {
-    if (!node) return 0;
-    const baseNodeWidth = structureMode === 'linier' ? 122 : 132;
-    if (node.children.length === 0) {
-      node.width = baseNodeWidth;
-      return node.width;
-    }
-    node.width = node.children.reduce((acc, child) => acc + calculateSubtreeWidth(child), 0);
-    return Math.max(node.width, baseNodeWidth);
-  }
-
-  // Set Koordinat X dan Y Pas untuk setiap mode struktur
-  function assignCoordinates(node: BatchTreeNode, startX: number, startY: number, levelGap = 160) {
-    if (!node) return;
-    const level = node.id.split('.').length - 1;
-    node.y = direction === 'bottom-up' ? startY - (level * levelGap) : startY + (level * levelGap);
-
-    if (structureMode === 'linier') {
-      // Pada mode linier, posisikan anak terlebih dahulu, lalu luruskan parent sejajar sumbu anak utama (poros nasab lurus)
-      let currentX = startX;
-      node.children.forEach(child => {
-        assignCoordinates(child, currentX, startY, levelGap);
-        currentX += child.width;
-      });
-
-      // Cari anak poros utama (User atau anak pertama .1)
-      const primaryChild = node.children.find(c => c.isUser || c.id.endsWith('.1')) || node.children[0];
-      if (primaryChild && node.children.length > 0) {
-        node.x = primaryChild.x;
-      } else {
-        node.x = startX + node.width / 2;
-      }
-    } else {
-      // Mode Paralel & Seri: kapling terbagi seimbang di tengah
-      node.x = startX + node.width / 2;
-
-      let currentX = startX;
-      node.children.forEach(child => {
-        assignCoordinates(child, currentX, startY, levelGap);
-        currentX += child.width;
-      });
-    }
-  }
-
-  // Start Y disesuaikan agar 5 tingkat generasi (Uyut - Kakek - Ayah - Anak - Cucu) lega
-  const startY = direction === 'bottom-up' ? 1040 : 140;
-  let runningX = 100;
-
-  roots.forEach(root => {
-    calculateSubtreeWidth(root);
-    assignCoordinates(root, runningX, startY);
-    runningX += root.width + 70;
-  });
-
-  return { roots, totalWidth: Math.max(runningX + 160, 1600), totalHeight: 1280 };
 }
 
 // ----------------------------------------------------------------------------
@@ -465,6 +256,8 @@ export interface OrbitQuViewProps {
   onClearInitialSelectedNodeId?: () => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  initialVisualMode?: 'orbitqu' | 'pohonqu';
+  onVisualModeChange?: (mode: 'orbitqu' | 'pohonqu') => void;
 }
 
 export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
@@ -476,9 +269,35 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
   initialSelectedNodeId,
   onClearInitialSelectedNodeId,
   theme: propsTheme,
-  onToggleTheme
+  onToggleTheme,
+  initialVisualMode,
+  onVisualModeChange
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Switch Modul / Desain: 'orbitqu' (Tata Surya) vs 'pohonqu' (Bagan Pohon)
+  const [visualMode, setVisualMode] = useState<'orbitqu' | 'pohonqu'>(() => {
+    if (initialVisualMode) return initialVisualMode;
+    try {
+      const saved = localStorage.getItem('wargaqu_orbitqu_visual_mode');
+      return saved === 'pohonqu' ? 'pohonqu' : 'orbitqu';
+    } catch {
+      return 'orbitqu';
+    }
+  });
+
+  const handleSwitchVisualMode = (mode: 'orbitqu' | 'pohonqu') => {
+    setVisualMode(mode);
+    try {
+      localStorage.setItem('wargaqu_orbitqu_visual_mode', mode);
+    } catch {}
+    onVisualModeChange?.(mode);
+    showNotification?.(
+      mode === 'orbitqu'
+        ? '🪐 Beralih ke Mode OrbitQu (Tata Surya Rasi Bintang)'
+        : '🌳 Beralih ke Mode PohonQu (Bagan Pohon Silsilah Generasi)'
+    );
+  };
 
   // Tema Dark (Cosmic Space) vs Light (Heritage Parchment)
   const [internalTheme, setInternalTheme] = useState<'dark' | 'light'>(() => {
@@ -523,34 +342,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
   // Garis Urut Sambung Anak / Sibling (No. 1 ➔ No. 2 ➔ No. 3...)
   const [showOrderSequenceLines, setShowOrderSequenceLines] = useState<boolean>(true);
-
-  // Mode Render Tampilan: 'batch_tree' (Advanced Line & Batch Notation Renderer) vs 'orbit' (Rasi Kosmik)
-  const [activeRendererMode, setActiveRendererMode] = useState<'batch_tree' | 'orbit'>('batch_tree');
-
-  // Opsi Gaya Garis: 'double' (2 Paralel), 'triple' (3 Kabel Rel), 'single' (1 Utama)
-  const [lineStylePattern, setLineStylePattern] = useState<'single' | 'double' | 'triple'>('double');
-
-  // Opsi Garis Keturunan & Struktur Nasab: 'paralel' (menyebar), 'seri' (bus rel sirkuit 90°), 'linier' (poros lurus langsung)
-  const [lineageStructureMode, setLineageStructureMode] = useState<'paralel' | 'seri' | 'linier'>('paralel');
-
-  // Opsi Rangkaian Saudara / Anak ke 1, 2, 3, 4, 5, 6, 7, dst: 'paralel' | 'seri' | 'paralel_seri'
-  const [siblingCircuitMode, setSiblingCircuitMode] = useState<'paralel' | 'seri' | 'paralel_seri'>('paralel_seri');
-
-  // Arah Pohon Notasi: 'bottom-up' (Bawah ke Atas - Sesuai Kode) vs 'top-down' (Atas ke Bawah)
-  const [treeDirection, setTreeDirection] = useState<'bottom-up' | 'top-down'>('bottom-up');
-
-  // Sumber Data: 'main' (Silsilah Aktif Di-Notasikan) vs 'sample' (12 Anggota Universal ID Spesifikasi Uyut-Cucu)
-  const [batchDataSource, setBatchDataSource] = useState<'main' | 'sample'>('main');
-
-  // Kamera SVG untuk Pan & Zoom Mode Batch Tree
-  const [svgCamera, setSvgCamera] = useState<{ x: number; y: number; zoom: number }>({ x: 40, y: -450, zoom: 0.85 });
-  const svgDragRef = useRef<{ isDragging: boolean; startX: number; startY: number; hasMoved: boolean; initialPinchDist: number }>({
-    isDragging: false,
-    startX: 0,
-    startY: 0,
-    hasMoved: false,
-    initialPinchDist: 0
-  });
 
   // Popup Peringatan Hapus Silsilah
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState<boolean>(false);
@@ -690,468 +481,6 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       ...prev
     ]);
   };
-
-  // -------------------------------------------------------------
-  // DATA & HIERARCHY COMPUTATION KHUSUS MODE NOTASI BATCH
-  // -------------------------------------------------------------
-  const batchItems = useMemo(() => {
-    if (batchDataSource === 'sample') {
-      return DEFAULT_BATCH_FAMILY_DATA;
-    }
-    return convertOrbitNodesToBatchData(familyTree.nodes, 'all');
-  }, [batchDataSource, familyTree.nodes]);
-
-  const treeHierarchy = useMemo(() => {
-    return buildTreeHierarchyEngine(batchItems, treeDirection, lineageStructureMode);
-  }, [batchItems, treeDirection, lineageStructureMode]);
-
-  // SVG Pan & Zoom Handlers
-  const handleSvgMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    svgDragRef.current.isDragging = true;
-    svgDragRef.current.startX = e.clientX - svgCamera.x;
-    svgDragRef.current.startY = e.clientY - svgCamera.y;
-    svgDragRef.current.hasMoved = false;
-  };
-
-  const handleSvgMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!svgDragRef.current.isDragging) return;
-    svgDragRef.current.hasMoved = true;
-    setSvgCamera(prev => ({
-      ...prev,
-      x: e.clientX - svgDragRef.current.startX,
-      y: e.clientY - svgDragRef.current.startY
-    }));
-  };
-
-  const handleSvgMouseUp = () => {
-    svgDragRef.current.isDragging = false;
-  };
-
-  const handleSvgWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.12 : 0.88;
-    setSvgCamera(prev => ({
-      ...prev,
-      zoom: Math.min(Math.max(prev.zoom * factor, 0.25), 2.8)
-    }));
-  };
-
-  const handleSvgTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length === 1) {
-      svgDragRef.current.isDragging = true;
-      svgDragRef.current.startX = e.touches[0].clientX - svgCamera.x;
-      svgDragRef.current.startY = e.touches[0].clientY - svgCamera.y;
-      svgDragRef.current.hasMoved = false;
-    } else if (e.touches.length === 2) {
-      svgDragRef.current.isDragging = false;
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      svgDragRef.current.initialPinchDist = Math.hypot(dx, dy);
-    }
-  };
-
-  const handleSvgTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (e.touches.length === 1 && svgDragRef.current.isDragging) {
-      svgDragRef.current.hasMoved = true;
-      setSvgCamera(prev => ({
-        ...prev,
-        x: e.touches[0].clientX - svgDragRef.current.startX,
-        y: e.touches[0].clientY - svgDragRef.current.startY
-      }));
-    } else if (e.touches.length === 2 && svgDragRef.current.initialPinchDist > 0) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      const ratio = dist / svgDragRef.current.initialPinchDist;
-      svgDragRef.current.initialPinchDist = dist;
-      setSvgCamera(prev => ({
-        ...prev,
-        zoom: Math.min(Math.max(prev.zoom * ratio, 0.25), 2.8)
-      }));
-    }
-  };
-
-  const handleSvgTouchEnd = () => {
-    svgDragRef.current.isDragging = false;
-    svgDragRef.current.initialPinchDist = 0;
-  };
-
-  const handleSvgZoomIn = () => {
-    setSvgCamera(prev => ({
-      ...prev,
-      zoom: Math.min(prev.zoom * 1.25, 2.8)
-    }));
-  };
-
-  const handleSvgZoomOut = () => {
-    setSvgCamera(prev => ({
-      ...prev,
-      zoom: Math.max(prev.zoom / 1.25, 0.25)
-    }));
-  };
-
-  const handleSvgReset = () => {
-    setSvgCamera({ x: 40, y: -450, zoom: 0.85 });
-    showNotification?.('Posisi kamera diatur ke default.');
-  };
-
-  const handleSvgCenter = () => {
-    const userNode = batchItems.find(n => n.isUser || n.id === "0.1.1.1");
-    if (userNode) {
-      let target: BatchTreeNode | null = null;
-      const findTarget = (n: BatchTreeNode) => {
-        if (n.id === userNode.id) {
-          target = n;
-          return;
-        }
-        n.children.forEach(findTarget);
-      };
-      treeHierarchy.roots.forEach(findTarget);
-
-      if (target) {
-        setSvgCamera({
-          x: -(target as BatchTreeNode).x + 200,
-          y: -(target as BatchTreeNode).y + 350,
-          zoom: 1.05
-        });
-        showNotification?.(`🎯 Kamera fokus ke ${userNode.name} [${userNode.id}]!`);
-        return;
-      }
-    }
-    handleSvgReset();
-  };
-
-  // Rendering elemen Garis & Node SVG
-  const { renderedConnections, renderedNodes } = useMemo(() => {
-    const linesList: React.ReactNode[] = [];
-    const nodesList: React.ReactNode[] = [];
-
-    const traverse = (node: BatchTreeNode) => {
-      const level = node.id.split('.').length - 1;
-      const isSelected = selectedNode?.id === (node.originalNodeId || node.id);
-
-      // 1. Render Garis dari Parent ke Anak-Anak (Anak 1, 2, 3, 4, 5, 6, 7, dst)
-      const sortedChildren = [...node.children].sort((a, b) => {
-        const na = parseInt(a.id.split('.').pop() || '0', 10);
-        const nb = parseInt(b.id.split('.').pop() || '0', 10);
-        return na - nb;
-      });
-
-      sortedChildren.forEach((child, childIdx) => {
-        const x1 = node.x;
-        const y1 = treeDirection === 'bottom-up' ? node.y - 21 : node.y + 21;
-        const x2 = child.x;
-        const y2 = treeDirection === 'bottom-up' ? child.y + 21 : child.y - 21;
-        const midY = y1 + (y2 - y1) / 2;
-
-        let pathD = '';
-        if (lineageStructureMode === 'linier') {
-          // 1. LINIER: Garis lurus tegas langsung menghubungkan poros nasab
-          pathD = `M ${x1} ${y1} L ${x2} ${y2}`;
-        } else if (lineageStructureMode === 'seri') {
-          // 2. SERI: Sirkuit bus rel orthogonal bertingkat (siku 90°)
-          pathD = `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
-        } else {
-          // 3. PARALEL: Kurva Bezier halus menyebar ke cabang paralel
-          pathD = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
-        }
-
-        const strokeColor = BATCH_LEVEL_COLORS[level % 6] || "#94a3b8";
-        const baseWidth = Math.max(2, 6 - level * 1.1);
-
-        // Jika mode anak adalah 'seri', maka aliran primer orang tua masuk ke Anak ke-1 (Sulung),
-        // sedangkan anak ke-2, 3, 4, 5... tersambung lewat rantai seri horizontal antar-saudara
-        const isSecondarySeriesChild = siblingCircuitMode === 'seri' && childIdx > 0 && sortedChildren.length > 1;
-
-        if (lineStylePattern === 'single') {
-          linesList.push(
-            <path
-              key={`line-${node.id}-${child.id}`}
-              d={pathD}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth={isSecondarySeriesChild ? 1.4 : baseWidth}
-              strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
-              strokeOpacity={isSecondarySeriesChild ? 0.45 : 1}
-              strokeLinecap="round"
-            />
-          );
-        } else if (lineStylePattern === 'double') {
-          linesList.push(
-            <g key={`line-${node.id}-${child.id}`} opacity={isSecondarySeriesChild ? 0.45 : 1}>
-              <path
-                d={pathD}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={Math.max(1.2, baseWidth / 2)}
-                strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
-                strokeLinecap="round"
-                transform="translate(-2, 0)"
-              />
-              <path
-                d={pathD}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={Math.max(1.2, baseWidth / 2)}
-                strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
-                strokeLinecap="round"
-                transform="translate(2, 0)"
-              />
-            </g>
-          );
-        } else {
-          // triple (kabel rel / bus bar 3 jalur)
-          linesList.push(
-            <g key={`line-${node.id}-${child.id}`} opacity={isSecondarySeriesChild ? 0.45 : 1}>
-              <path
-                d={pathD}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={1}
-                strokeLinecap="round"
-                transform="translate(-3, 0)"
-              />
-              <path
-                d={pathD}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={baseWidth}
-                strokeDasharray={isSecondarySeriesChild ? "4 3" : undefined}
-                strokeLinecap="round"
-              />
-              <path
-                d={pathD}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={1}
-                strokeLinecap="round"
-                transform="translate(3, 0)"
-              />
-            </g>
-          );
-        }
-
-        // Khusus Mode SERI: Tambahkan Terminal Percabangan Bus (Junction Dots Siku)
-        if (lineageStructureMode === 'seri') {
-          linesList.push(
-            <g key={`junction-${node.id}-${child.id}`} className="pointer-events-none">
-              <circle
-                cx={x1}
-                cy={midY}
-                r={3.2}
-                fill={strokeColor}
-                stroke={isLight ? "#ffffff" : "#0f172a"}
-                strokeWidth={1.2}
-              />
-              <circle
-                cx={x2}
-                cy={midY}
-                r={3.2}
-                fill={strokeColor}
-                stroke={isLight ? "#ffffff" : "#0f172a"}
-                strokeWidth={1.2}
-              />
-            </g>
-          );
-        }
-
-        // Khusus Mode LINIER: Tambahkan Pip Penanda Aliran Nasab Lurus
-        if (lineageStructureMode === 'linier') {
-          linesList.push(
-            <circle
-              key={`pip-${node.id}-${child.id}`}
-              cx={(x1 + x2) / 2}
-              cy={(y1 + y2) / 2}
-              r={2.5}
-              fill={strokeColor}
-              className="pointer-events-none opacity-85"
-            />
-          );
-        }
-
-        traverse(child);
-      });
-
-      // 2. SIBLING CIRCUIT CONNECTIONS: Rangkaian Seri / Paralel-Seri untuk Anak ke 1, 2, 3, 4, 5, 6, 7, dst
-      if (sortedChildren.length > 1 && (siblingCircuitMode === 'seri' || siblingCircuitMode === 'paralel_seri')) {
-        for (let i = 0; i < sortedChildren.length - 1; i++) {
-          const c1 = sortedChildren[i];
-          const c2 = sortedChildren[i + 1];
-          const order1 = c1.id.split('.').pop() || (i + 1).toString();
-          const order2 = c2.id.split('.').pop() || (i + 2).toString();
-
-          const startBridgeX = c1.x + 52;
-          const endBridgeX = c2.x - 52;
-          const bridgeY = c1.y;
-          const midBridgeX = (startBridgeX + endBridgeX) / 2;
-          const siblingColor = BATCH_LEVEL_COLORS[(level + 1) % 6] || BATCH_LEVEL_COLORS[level % 6] || "#94a3b8";
-
-          if (endBridgeX > startBridgeX) {
-            linesList.push(
-              <g key={`sibling-link-${node.id}-${c1.id}-${c2.id}`} className="pointer-events-none select-none">
-                {/* Garis Horizontal Penghubung Seri Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ ... */}
-                <path
-                  d={`M ${startBridgeX} ${bridgeY} L ${endBridgeX} ${c2.y}`}
-                  fill="none"
-                  stroke={siblingColor}
-                  strokeWidth={siblingCircuitMode === 'seri' ? 2.8 : 2}
-                  strokeDasharray={siblingCircuitMode === 'paralel_seri' ? "5 3" : undefined}
-                  strokeLinecap="round"
-                />
-
-                {/* Junction Dots di tepi kartu anak */}
-                <circle
-                  cx={startBridgeX}
-                  cy={bridgeY}
-                  r={3.2}
-                  fill={siblingColor}
-                  stroke={isLight ? '#ffffff' : '#0f172a'}
-                  strokeWidth={1.2}
-                />
-                <circle
-                  cx={endBridgeX}
-                  cy={c2.y}
-                  r={3.2}
-                  fill={siblingColor}
-                  stroke={isLight ? '#ffffff' : '#0f172a'}
-                  strokeWidth={1.2}
-                />
-
-                {/* Badge Aliran Seri Urutan Kelahiran Anak: Anak [1 ➔ 2], [2 ➔ 3], dst */}
-                <g transform={`translate(${midBridgeX}, ${bridgeY})`}>
-                  <rect
-                    x={-19}
-                    y={-8.5}
-                    width={38}
-                    height={17}
-                    rx={8.5}
-                    fill={isLight ? '#ffffff' : '#0f172a'}
-                    stroke={siblingColor}
-                    strokeWidth={1.5}
-                    className="filter drop-shadow-xs"
-                  />
-                  <text
-                    x={0}
-                    y={3.5}
-                    fontSize={8}
-                    fontWeight="bold"
-                    fill={siblingColor}
-                    textAnchor="middle"
-                    fontFamily="monospace"
-                  >
-                    {order1}➔{order2}
-                  </text>
-                </g>
-              </g>
-            );
-          }
-        }
-      }
-
-      // 3. Render node card
-      const strokeColor = BATCH_LEVEL_COLORS[level % 6] || "#fff";
-      const cardFill = isLight ? "#ffffff" : "#1e293b";
-      const levelLabel = BATCH_LEVEL_LABELS[level] || `Gen ${level}`;
-      const childNum = node.id.split('.').pop() || '1';
-
-      nodesList.push(
-        <g
-          key={`node-${node.id}`}
-          className="cursor-pointer group select-none"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (node.originalNodeId) {
-              const matched = familyTree.nodes.find(n => n.id === node.originalNodeId);
-              if (matched) {
-                setSelectedNode(matched);
-                if (isAdminMode) setShowAdminEditModal(true);
-                else setShowUserClaimModal(true);
-                showNotification?.(`Memilih [${node.id}] ${node.name} (${level === 3 ? `Anak ke-${childNum}` : levelLabel})`);
-                return;
-              }
-            }
-            showNotification?.(`Node terpilih: [${node.id}] ${node.name} • ${level === 3 ? `Anak ke-${childNum}` : levelLabel}`);
-          }}
-        >
-          {isSelected && (
-            <rect
-              x={node.x - 58}
-              y={node.y - 26}
-              width={116}
-              height={52}
-              rx={10}
-              fill={strokeColor}
-              fillOpacity={0.25}
-              stroke={strokeColor}
-              strokeWidth={2}
-            />
-          )}
-
-          <rect
-            x={node.x - 52}
-            y={node.y - 21}
-            width={104}
-            height={42}
-            rx={8}
-            fill={cardFill}
-            stroke={strokeColor}
-            strokeWidth={isSelected ? 2.5 : 2}
-            className="filter drop-shadow-sm hover:brightness-110 transition"
-          />
-
-          {/* Badge Universal ID */}
-          <text
-            x={node.x - 44}
-            y={node.y - 6}
-            fill={isLight ? "#d97706" : "#f59e0b"}
-            fontSize={9.5}
-            fontWeight="bold"
-            fontFamily="monospace"
-            className="pointer-events-none"
-          >
-            [{node.id}]
-          </text>
-
-          {/* Badge Label Generasi & Nomor Urut Anak (Anak ke-1, ke-2, ke-3, dst) */}
-          <text
-            x={node.x + 44}
-            y={node.y - 6}
-            fill={strokeColor}
-            fontSize={8}
-            fontWeight="bold"
-            textAnchor="end"
-            className="pointer-events-none font-sans"
-          >
-            {level === 3 ? `Anak ke-${childNum}` : (level === 4 ? `Cucu ke-${childNum}` : (level > 0 ? `${levelLabel} ke-${childNum}` : levelLabel))}
-          </text>
-
-          {/* Nama Anggota */}
-          <text
-            x={node.x}
-            y={node.y + 13}
-            fill={isLight ? "#0f172a" : "#f8fafc"}
-            fontSize={11}
-            fontWeight="bold"
-            textAnchor="middle"
-            className="pointer-events-none"
-          >
-            {node.name.length > 13 ? node.name.slice(0, 12) + '…' : node.name}
-          </text>
-
-          {node.isUser && (
-            <g transform={`translate(${node.x + 38}, ${node.y - 12})`}>
-              <circle cx={0} cy={0} r={6} fill="#0284c7" />
-              <text x={0} y={2.5} fontSize={7} fill="#ffffff" textAnchor="middle" fontWeight="bold">★</text>
-            </g>
-          )}
-        </g>
-      );
-    };
-
-    treeHierarchy.roots.forEach(traverse);
-
-    return { renderedConnections: linesList, renderedNodes: nodesList };
-  }, [treeHierarchy, lineStylePattern, lineageStructureMode, siblingCircuitMode, treeDirection, isLight, selectedNode, familyTree.nodes, isAdminMode]);
 
   // Simpan Silsilah Permanen & Lanjut Edit
   const handleSaveTreeData = () => {
@@ -1610,32 +939,13 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             const toX = child._renderX;
             const toY = child._renderY;
 
-            if (lineageStructureMode === 'linier' || lineCurveStyle === 'straight') {
-              // Garis lurus konvensional / linier langsung
+            if (lineCurveStyle === 'straight') {
+              // Garis lurus konvensional
               ctx.beginPath();
               ctx.moveTo(fromX, fromY);
               ctx.lineTo(toX, toY);
-            } else if (lineageStructureMode === 'seri') {
-              // Garis seri berjenjang antar orbit (bus step arc)
-              ctx.beginPath();
-              ctx.moveTo(fromX, fromY);
-              const fromR = parentNode._radius || 0;
-              const toR = child._radius || 100;
-              const fromAngle = parentNode._angle || 0;
-              const toAngle = child._angle || 0;
-
-              if (fromR < 10) {
-                ctx.lineTo(toX, toY);
-              } else {
-                const midR = (fromR + toR) * 0.5;
-                const p1X = q.center.x + midR * Math.cos(fromAngle);
-                const p1Y = q.center.y + midR * Math.sin(fromAngle);
-                ctx.lineTo(p1X, p1Y);
-                ctx.arc(q.center.x, q.center.y, midR, fromAngle, toAngle, fromAngle > toAngle);
-                ctx.lineTo(toX, toY);
-              }
             } else {
-              // GARIS RASI BINTANG MELENGKUNG ALAMI (Paralel / Cubic Bezier Mengikuti Aliran Orbit)
+              // GARIS RASI BINTANG MELENGKUNG ALAMI (Cubic Bezier Mengikuti Aliran Orbit)
               ctx.beginPath();
               ctx.moveTo(fromX, fromY);
 
@@ -2126,11 +1436,11 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines, currentTheme, lineageStructureMode]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, globalFrameShape, showOrderSequenceLines, currentTheme]);
 
   useEffect(() => {
     renderCanvas();
-  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines, currentTheme, lineageStructureMode]);
+  }, [familyTree, showConnectingLines, orbitSpreadMode, lineCurveStyle, selectedNode, globalFrameShape, showOrderSequenceLines, currentTheme]);
 
   // -------------------------------------------------------------
   // MOUSE & TOUCH GESTURES (DRAGGING CAMERA ATAU DRAGGING BINTANG DI ORBIT)
@@ -2730,6 +2040,22 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
     ? familyTree.nodes.filter(n => n.quadrant === selectedNode.quadrant && n.gen === selectedNode.gen - 1)
     : [];
 
+  // Render PohonQuView jika pengguna beralih ke Mode PohonQu
+  if (visualMode === 'pohonqu') {
+    return (
+      <PohonQuView
+        familyTree={familyTree}
+        onUpdateFamilyTree={setFamilyTree}
+        theme={currentTheme}
+        onToggleTheme={toggleTheme}
+        onSwitchToOrbitQu={() => handleSwitchVisualMode('orbitqu')}
+        onBackToLeluhurQu={onBackToLeluhurQu}
+        onOpenInSilsilah={onOpenInSilsilah}
+        showNotification={showNotification}
+      />
+    );
+  }
+
   return (
     <div className={`w-full h-full relative flex flex-col ${isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#070b14] text-slate-100'} overflow-hidden font-sans select-none transition-colors duration-200`}>
       {/* ------------------------------------------------------------- */}
@@ -2760,6 +2086,29 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
               Core Ancestor → Outer Cicit Expansion
             </p>
           </div>
+        </div>
+
+        {/* SWITCHER DESAIN / MODUL: 🪐 OrbitQu vs 🌳 PohonQu */}
+        <div className={`flex items-center p-0.5 rounded-xl border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/90 border-slate-700'}`}>
+          <button
+            className={`px-2.5 py-1 rounded-lg text-xs font-black flex items-center gap-1 shadow-xs ${
+              isLight ? 'bg-white text-emerald-700 border border-slate-200' : 'bg-emerald-600 text-white'
+            }`}
+            title="Sedang aktif di Mode OrbitQu (Tata Surya Rasi Bintang)"
+          >
+            <Compass className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden sm:inline">🪐 OrbitQu</span>
+            <span className="sm:hidden">🪐 Orbit</span>
+          </button>
+          <button
+            onClick={() => handleSwitchVisualMode('pohonqu')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+              isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+            }`}
+            title="Beralih ke Desain PohonQu (Bagan Pohon Silsilah Generasi)"
+          >
+            <span>🌳 PohonQu</span>
+          </button>
         </div>
 
         {/* TOP RIGHT: THEME TOGGLE, BATCH ISI CEPAT & BUKU BESAR */}
@@ -2806,395 +2155,87 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
 
       {/* ------------------------------------------------------------- */}
       {/* SUB-HEADER TOOLBAR (DI BAWAH HEADER)                          */}
-      {/* Mode Switcher: Notasi Batch vs Rasi Kosmik + Kontrol Garis     */}
+      {/* Tombol Kipas, Lengkung, Admin/User, Garis On/Off, Reset        */}
       {/* ------------------------------------------------------------- */}
       <div className={`z-10 ${isLight ? 'bg-slate-100/95 border-b border-slate-200 text-slate-700' : 'bg-slate-900/90 border-b border-slate-800/80 text-slate-300'} backdrop-blur px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 shadow-xs no-scrollbar`}>
-        {/* Left: Mode Switcher & Tools */}
+        {/* Left: Kipas, Lengkung, Sambung Urut, Frame Foto, Admin/User, Garis On/Off */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* TOGGLE UTAMA: BAGAN NOTASI BATCH vs RASI KOSMIK */}
-          <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
-            <button
-              onClick={() => {
-                setActiveRendererMode('batch_tree');
-                showNotification?.('🌳 Mode Bagan Notasi Batch (Advanced Line & Anti-Numpuk) Aktif');
-              }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                activeRendererMode === 'batch_tree'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span>Bagan Notasi Batch</span>
-            </button>
-            <button
-              onClick={() => {
-                setActiveRendererMode('orbit');
-                showNotification?.('🌌 Mode Rasi Bintang Orbit Kosmik Aktif');
-              }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                activeRendererMode === 'orbit'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5" />
-              <span>Rasi Orbit Kosmik</span>
-            </button>
-          </div>
+          {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
+          <button
+            onClick={() => {
+              const next = orbitSpreadMode === 'fan' ? 'circle' : 'fan';
+              setOrbitSpreadMode(next);
+              showNotification?.(next === 'fan' ? '🌌 Pola Kipas Kosmik aktif (Percabangan melebar keluar tanpa menyebrang).' : '🪐 Pola Melingkar 360° aktif.');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              orbitSpreadMode === 'fan'
+                ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-xs'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
+            }`}
+            title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360°"
+          >
+            <Compass className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik' : 'Pola: Melingkar 360°'}</span>
+          </button>
 
-          {/* KONTROL KHUSUS MODE NOTASI BATCH */}
-          {activeRendererMode === 'batch_tree' ? (
-            <>
-              {/* OPSI STRUKTUR GARIS KETURUNAN: LINIER / SERI / PARALEL */}
-              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
-                <span className="text-[10px] font-bold px-1.5 opacity-70 hidden sm:inline">Struktur:</span>
-                <button
-                  onClick={() => {
-                    setLineageStructureMode('linier');
-                    showNotification?.('⚡ Struktur Keturunan: LINIER (Poros Lurus Tegas Uyut ➔ Kakek ➔ Ayah ➔ Anak ➔ Cucu)');
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                    lineageStructureMode === 'linier'
-                      ? 'bg-amber-500 text-slate-950 shadow-xs'
-                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-                  }`}
-                  title="Garis Keturunan Linier: Poros lurus tegak langsung menghubungkan Uyut - Kakek - Ayah - Anak - Cucu"
-                >
-                  <Zap className="w-3.5 h-3.5 fill-current" />
-                  <span>Linier</span>
-                </button>
+          {/* Gaya Garis Rasi Bintang Melengkung vs Lurus */}
+          <button
+            onClick={() => {
+              const next = lineCurveStyle === 'curved' ? 'straight' : 'curved';
+              setLineCurveStyle(next);
+              showNotification?.(next === 'curved' ? '✨ Garis rasi bintang melengkung halus aktif.' : '📏 Garis lurus konvensional aktif.');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              lineCurveStyle === 'curved'
+                ? 'bg-sky-600/90 border-sky-400 text-white shadow-xs'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
+            }`}
+            title="Klik untuk ubah gaya garis: Rasi Melengkung vs Lurus"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span>{lineCurveStyle === 'curved' ? 'Garis: Melengkung' : 'Garis: Lurus'}</span>
+          </button>
 
-                <button
-                  onClick={() => {
-                    setLineageStructureMode('seri');
-                    showNotification?.('🔀 Struktur Keturunan: SERI (Sirkuit Bus Rel 90° & Terminal Percabangan Uyut ➔ Cucu)');
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                    lineageStructureMode === 'seri'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-                  }`}
-                  title="Garis Keturunan Seri: Jalur rel sirkuit orthogonal bertingkat dengan junction terminal"
-                >
-                  <GitMerge className="w-3.5 h-3.5" />
-                  <span>Seri</span>
-                </button>
+          {/* TOMBOL BARU: GARIS URUT / SAMBUNG DARI NO 1 - SETERUSNYA */}
+          <button
+            onClick={() => {
+              const next = !showOrderSequenceLines;
+              setShowOrderSequenceLines(next);
+              showNotification?.(next ? '🔗 Garis Sambung No. Urut (1 ➔ 2 ➔ 3...) Diaktifkan!' : 'Garis sambung urut dimatikan.');
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              showOrderSequenceLines
+                ? 'bg-amber-600/90 border-amber-400 text-slate-950 font-bold shadow-xs'
+                : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
+            }`}
+            title="Hubungkan anak/saudara berurutan berdasarkan nomor urut (No. 1 ➔ No. 2 ➔ No. 3...)"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>{showOrderSequenceLines ? 'Sambung Urut: On' : 'Sambung No. Urut'}</span>
+          </button>
 
-                <button
-                  onClick={() => {
-                    setLineageStructureMode('paralel');
-                    showNotification?.('🔱 Struktur Keturunan: PARALEL (Cabang Kurva Bezier Menyebar Sejajar)');
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                    lineageStructureMode === 'paralel'
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-                  }`}
-                  title="Garis Keturunan Paralel: Cabang kapling menyebar dengan kurva Bezier mulus bebas benturan"
-                >
-                  <Network className="w-3.5 h-3.5" />
-                  <span>Paralel</span>
-                </button>
-              </div>
-
-              {/* OPSI HUBUNGAN ANAK KE 1, 2, 3, 4, 5, 6, 7 dst: PARALEL / SERI / PARALEL & SERI */}
-              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
-                <span className="text-[10px] font-bold px-1.5 opacity-70 hidden sm:inline">Anak (1-7+):</span>
-                <button
-                  onClick={() => {
-                    setSiblingCircuitMode('paralel');
-                    setShowOrderSequenceLines(false);
-                    showNotification?.('🔱 Anak (1-7+): PARALEL (Tiap anak terhubung mandiri langsung ke orang tua)');
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                    siblingCircuitMode === 'paralel'
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-                  }`}
-                  title="Paralel: Masing-masing anak (ke-1, 2, 3, 4, 5, 6, 7, dst) memiliki jalur vertikal independen langsung dari orang tua"
-                >
-                  <Network className="w-3.5 h-3.5" />
-                  <span>Paralel</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setSiblingCircuitMode('seri');
-                    setShowOrderSequenceLines(true);
-                    showNotification?.('🔀 Anak (1-7+): SERI (Sirkuit Berantai: Ayah ➔ Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7 dst)');
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                    siblingCircuitMode === 'seri'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-                  }`}
-                  title="Seri: Jalur berantai berurutan dari Anak Sulung ke Bungsu (Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)"
-                >
-                  <GitMerge className="w-3.5 h-3.5" />
-                  <span>Seri</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setSiblingCircuitMode('paralel_seri');
-                    setShowOrderSequenceLines(true);
-                    showNotification?.('⚡ Anak (1-7+): PARALEL / SERI (Cabang Paralel + Bus Sirkuit Seri Anak 1 ➔ 7+)');
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
-                    siblingCircuitMode === 'paralel_seri'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
-                  }`}
-                  title="Paralel / Seri: Hibrida jalur cabang pohon paralel ke semua anak DITAMBAH bus rel seri penghubung urutan kelahiran (Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Paralel / Seri</span>
-                </button>
-              </div>
-
-              {/* Opsi Gaya Garis: Single, Double, Triple */}
-              <button
-                onClick={() => {
-                  const styles: Array<'double' | 'triple' | 'single'> = ['double', 'triple', 'single'];
-                  const nextIdx = (styles.indexOf(lineStylePattern) + 1) % styles.length;
-                  const next = styles[nextIdx];
-                  setLineStylePattern(next);
-                  const label = next === 'double' ? 'Double (2 Jalur Paralel)' : next === 'triple' ? 'Triple (3 Rel Sirkuit)' : 'Single (1 Jalur Utama)';
-                  showNotification?.(`Gaya Garis: ${label}`);
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border cursor-pointer ${
-                  lineStylePattern === 'double'
-                    ? 'bg-sky-600 text-white border-sky-400 shadow-xs'
-                    : lineStylePattern === 'triple'
-                    ? 'bg-purple-600 text-white border-purple-400 shadow-xs'
-                    : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
-                }`}
-                title="Pilihan Gaya Garis Hubung: Double (2 Jalur), Triple (3 Kabel Rel), atau Single"
-              >
-                <GitBranch className="w-3.5 h-3.5" />
-                <span>Garis: {lineStylePattern === 'double' ? 'Double (2 Jalur)' : lineStylePattern === 'triple' ? 'Triple (3 Rel)' : 'Single (1 Jalur)'}</span>
-              </button>
-
-              {/* Arah Susunan Pohon: Bawah ke Atas vs Atas ke Bawah */}
-              <button
-                onClick={() => {
-                  const next = treeDirection === 'bottom-up' ? 'top-down' : 'bottom-up';
-                  setTreeDirection(next);
-                  showNotification?.(next === 'bottom-up' ? 'Arah: Bawah ke Atas (Akar di Bawah)' : 'Arah: Atas ke Bawah (Pohon Klasik)');
-                }}
-                className={`px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border cursor-pointer ${
-                  isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
-                }`}
-                title="Arah Susunan Pohon Silsilah"
-              >
-                {treeDirection === 'bottom-up' ? <ArrowUp className="w-3.5 h-3.5 text-amber-500" /> : <ArrowDown className="w-3.5 h-3.5 text-sky-500" />}
-                <span>{treeDirection === 'bottom-up' ? 'Bawah ➔ Atas' : 'Atas ➔ Bawah'}</span>
-              </button>
-
-              {/* Sumber Data: Silsilah Utama vs Contoh Spesifikasi 12 Node (Uyut-Cucu) */}
-              <button
-                onClick={() => {
-                  const next = batchDataSource === 'main' ? 'sample' : 'main';
-                  setBatchDataSource(next);
-                  showNotification?.(next === 'sample' ? 'Memuat 12 Anggota Contoh Spesifikasi (Uyut -> Kakek -> Ayah -> Anak -> Cucu)' : 'Memuat Seluruh Silsilah Keluarga Utama');
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border cursor-pointer ${
-                  batchDataSource === 'sample'
-                    ? 'bg-amber-500 text-slate-950 font-bold border-amber-300 shadow-xs'
-                    : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
-                }`}
-                title="Beralih Sumber Data: Silsilah Utama Aktif vs Contoh Spesifikasi 5 Generasi"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>{batchDataSource === 'sample' ? 'Data: Contoh 5 Gen' : 'Data: Silsilah Utama'}</span>
-              </button>
-            </>
-          ) : (
-            <>
-              {/* OPSI STRUKTUR GARIS PADA RASI ORBIT KOSMIK */}
-              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
-                <button
-                  onClick={() => {
-                    setLineageStructureMode('linier');
-                    setLineCurveStyle('straight');
-                    showNotification?.('⚡ Garis Rasi Bintang: LINIER (Sinar Radial Lurus Pusat Uyut ke Cucu)');
-                    renderCanvas();
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
-                    lineageStructureMode === 'linier' ? 'bg-amber-500 text-slate-950 shadow-xs' : (isLight ? 'text-slate-600' : 'text-slate-400')
-                  }`}
-                  title="Garis Keturunan Linier: Sinar radial lurus dari Uyut ke Cucu"
-                >
-                  <Zap className="w-3 h-3 fill-current" />
-                  <span>Linier</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setLineageStructureMode('seri');
-                    showNotification?.('🔀 Garis Rasi Bintang: SERI (Bus Rel Berantai Antar Orbit)');
-                    renderCanvas();
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
-                    lineageStructureMode === 'seri' ? 'bg-purple-600 text-white shadow-xs' : (isLight ? 'text-slate-600' : 'text-slate-400')
-                  }`}
-                  title="Garis Keturunan Seri: Bus sirkuit bertingkat antar orbit"
-                >
-                  <GitMerge className="w-3 h-3" />
-                  <span>Seri</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setLineageStructureMode('paralel');
-                    setLineCurveStyle('curved');
-                    showNotification?.('🔱 Garis Rasi Bintang: PARALEL (Lengkung Radial Sektor Orbit)');
-                    renderCanvas();
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
-                    lineageStructureMode === 'paralel' ? 'bg-sky-600 text-white shadow-xs' : (isLight ? 'text-slate-600' : 'text-slate-400')
-                  }`}
-                  title="Garis Keturunan Paralel: Lengkung halus rasi bintang"
-                >
-                  <Network className="w-3 h-3" />
-                  <span>Paralel</span>
-                </button>
-              </div>
-
-              {/* Pola Kipas Kosmik (Anti-Bersebrangan) vs Melingkar */}
-              <button
-                onClick={() => {
-                  const next = orbitSpreadMode === 'fan' ? 'circle' : 'fan';
-                  setOrbitSpreadMode(next);
-                  showNotification?.(next === 'fan' ? '🌌 Pola Kipas Kosmik aktif (Percabangan melebar keluar tanpa menyebrang).' : '🪐 Pola Melingkar 360° aktif.');
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
-                  orbitSpreadMode === 'fan'
-                    ? 'bg-indigo-600/90 border-indigo-400 text-white shadow-xs'
-                    : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
-                }`}
-                title="Klik untuk ubah pola sebaran: Kipas Kosmik (Anti-Bersebrangan) vs Melingkar 360°"
-              >
-                <Compass className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{orbitSpreadMode === 'fan' ? 'Pola: Kipas Kosmik' : 'Pola: Melingkar 360°'}</span>
-              </button>
-
-              {/* Gaya Garis Rasi Bintang Melengkung vs Lurus */}
-              <button
-                onClick={() => {
-                  const next = lineCurveStyle === 'curved' ? 'straight' : 'curved';
-                  setLineCurveStyle(next);
-                  showNotification?.(next === 'curved' ? '✨ Garis rasi bintang melengkung halus aktif.' : '📏 Garis lurus konvensional aktif.');
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
-                  lineCurveStyle === 'curved'
-                    ? 'bg-sky-600/90 border-sky-400 text-white shadow-xs'
-                    : (isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700')
-                }`}
-                title="Klik untuk ubah gaya garis: Rasi Melengkung vs Lurus"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                <span>{lineCurveStyle === 'curved' ? 'Garis: Melengkung' : 'Garis: Lurus'}</span>
-              </button>
-
-              {/* OPSI HUBUNGAN ANAK / SAUDARA (1, 2, 3.. 7): PARALEL / SERI / PARALEL & SERI */}
-              <div className={`flex items-center p-0.5 rounded-lg border ${isLight ? 'bg-slate-200 border-slate-300' : 'bg-slate-800 border-slate-700'}`}>
-                <span className="text-[10px] font-bold px-1.5 opacity-70 hidden sm:inline">Anak (1-7+):</span>
-                <button
-                  onClick={() => {
-                    setSiblingCircuitMode('paralel');
-                    setShowOrderSequenceLines(false);
-                    showNotification?.('🔱 Anak (1-7+): PARALEL (Radial langsung dari pusat/induk orbit)');
-                    renderCanvas();
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
-                    siblingCircuitMode === 'paralel' && !showOrderSequenceLines
-                      ? 'bg-sky-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600' : 'text-slate-400')
-                  }`}
-                  title="Paralel: Masing-masing anak berorbit langsung mandiri"
-                >
-                  <Network className="w-3 h-3" />
-                  <span>Paralel</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setSiblingCircuitMode('seri');
-                    setShowOrderSequenceLines(true);
-                    showNotification?.('🔀 Anak (1-7+): SERI (Bus Rel Berantai Antar Urutan Anak 1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)');
-                    renderCanvas();
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
-                    siblingCircuitMode === 'seri'
-                      ? 'bg-purple-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600' : 'text-slate-400')
-                  }`}
-                  title="Seri: Sambungan bus berantai berurutan dari Sulung ke Bungsu"
-                >
-                  <GitMerge className="w-3 h-3" />
-                  <span>Seri</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setSiblingCircuitMode('paralel_seri');
-                    setShowOrderSequenceLines(true);
-                    showNotification?.('⚡ Anak (1-7+): PARALEL / SERI (Radial Induk + Rantai Urutan Anak 1-7+)');
-                    renderCanvas();
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition ${
-                    siblingCircuitMode === 'paralel_seri'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : (isLight ? 'text-slate-600' : 'text-slate-400')
-                  }`}
-                  title="Paralel / Seri: Garis radial induk orbit ditambah garis sambung konstelasi nomor urut (1 ➔ 2 ➔ 3 ➔ 4 ➔ 5 ➔ 6 ➔ 7)"
-                >
-                  <Share2 className="w-3 h-3" />
-                  <span>Paralel / Seri</span>
-                </button>
-              </div>
-
-              {/* OPSI FRAME FOTO BULAT / KOTAK / SEGI 6 */}
-              <button
-                onClick={() => {
-                  const shapes: Array<'circle' | 'square' | 'hexagon'> = ['circle', 'square', 'hexagon'];
-                  const nextIdx = (shapes.indexOf(globalFrameShape) + 1) % shapes.length;
-                  const next = shapes[nextIdx];
-                  setGlobalFrameShape(next);
-                  const label = next === 'circle' ? 'Bulat ⚪' : (next === 'square' ? 'Kotak ⬛' : 'Segi-6 ⬡');
-                  showNotification?.(`Bentuk frame foto profil diubah ke: ${label}`);
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
-                  isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
-                }`}
-                title="Ganti bentuk frame bintang & foto: Bulat, Kotak, atau Segi 6"
-              >
-                {globalFrameShape === 'circle' && <Circle className="w-3.5 h-3.5 text-emerald-500" />}
-                {globalFrameShape === 'square' && <Square className="w-3.5 h-3.5 text-sky-500" />}
-                {globalFrameShape === 'hexagon' && <Hexagon className="w-3.5 h-3.5 text-amber-500" />}
-                <span>
-                  {globalFrameShape === 'circle' ? 'Frame: Bulat' : (globalFrameShape === 'square' ? 'Frame: Kotak' : 'Frame: Segi-6')}
-                </span>
-              </button>
-
-              {/* Mode Admin: Garis On / Off */}
-              {isAdminMode && (
-                <button
-                  onClick={() => {
-                    setShowConnectingLines(!showConnectingLines);
-                    showNotification?.(!showConnectingLines ? 'Garis konektor diaktifkan.' : 'Garis konektor disembunyikan/dihapus.');
-                  }}
-                  className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition border flex items-center gap-1 ${
-                    showConnectingLines
-                      ? (isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300')
-                      : (isLight ? 'bg-rose-100 border-rose-300 text-rose-800' : 'bg-rose-950/40 border-rose-500/50 text-rose-300')
-                  }`}
-                  title="Admin: Tampilkan atau Hapus/Sembunyikan Garis Hubung"
-                >
-                  {showConnectingLines ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                  <span>{showConnectingLines ? 'Garis: On' : 'Garis: Off'}</span>
-                </button>
-              )}
-            </>
-          )}
+          {/* TOMBOL BARU: OPSI FRAME FOTO BULAT / KOTAK / SEGI 6 */}
+          <button
+            onClick={() => {
+              const shapes: Array<'circle' | 'square' | 'hexagon'> = ['circle', 'square', 'hexagon'];
+              const nextIdx = (shapes.indexOf(globalFrameShape) + 1) % shapes.length;
+              const next = shapes[nextIdx];
+              setGlobalFrameShape(next);
+              const label = next === 'circle' ? 'Bulat ⚪' : (next === 'square' ? 'Kotak ⬛' : 'Segi-6 ⬡');
+              showNotification?.(`Bentuk frame foto profil diubah ke: ${label}`);
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition border ${
+              isLight ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50' : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Ganti bentuk frame bintang & foto: Bulat, Kotak, atau Segi 6"
+          >
+            {globalFrameShape === 'circle' && <Circle className="w-3.5 h-3.5 text-emerald-500" />}
+            {globalFrameShape === 'square' && <Square className="w-3.5 h-3.5 text-sky-500" />}
+            {globalFrameShape === 'hexagon' && <Hexagon className="w-3.5 h-3.5 text-amber-500" />}
+            <span>
+              {globalFrameShape === 'circle' ? 'Frame: Bulat' : (globalFrameShape === 'square' ? 'Frame: Kotak' : 'Frame: Segi-6')}
+            </span>
+          </button>
 
           {/* Mode Switch: Admin Trah vs User Warga */}
           <button
@@ -3212,9 +2253,28 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
             <Shield className="w-3.5 h-3.5" />
             <span>Peran: {isAdminMode ? 'Admin' : 'User'}</span>
           </button>
+
+          {/* Mode Admin: Garis On / Off */}
+          {isAdminMode && (
+            <button
+              onClick={() => {
+                setShowConnectingLines(!showConnectingLines);
+                showNotification?.(!showConnectingLines ? 'Garis konektor diaktifkan.' : 'Garis konektor disembunyikan/dihapus.');
+              }}
+              className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition border flex items-center gap-1 ${
+                showConnectingLines
+                  ? (isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300')
+                  : (isLight ? 'bg-rose-100 border-rose-300 text-rose-800' : 'bg-rose-950/40 border-rose-500/50 text-rose-300')
+              }`}
+              title="Admin: Tampilkan atau Hapus/Sembunyikan Garis Hubung"
+            >
+              {showConnectingLines ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span>{showConnectingLines ? 'Garis: On' : 'Garis: Off'}</span>
+            </button>
+          )}
         </div>
 
-        {/* Right: Simpan Silsilah & Hapus Semua */}
+        {/* Right: Simpan Silsilah (Ganti tombol Reset) & Hapus Semua (Dengan Popup Peringatan) */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={handleSaveTreeData}
@@ -3245,156 +2305,52 @@ export const OrbitQuView: React.FC<OrbitQuViewProps> = ({
       {/* CANVAS / INTERACTIVE MAP AREA                                  */}
       {/* ------------------------------------------------------------- */}
       <main className="relative w-full flex-1 touch-none overflow-hidden">
-        {activeRendererMode === 'batch_tree' ? (
-          <div
-            className="w-full h-full relative overflow-hidden select-none cursor-grab active:cursor-grabbing"
-            onMouseDown={handleSvgMouseDown}
-            onMouseMove={handleSvgMouseMove}
-            onMouseUp={handleSvgMouseUp}
-            onMouseLeave={handleSvgMouseUp}
-            onTouchStart={handleSvgTouchStart}
-            onTouchMove={handleSvgTouchMove}
-            onTouchEnd={handleSvgTouchEnd}
-            onWheel={handleSvgWheel}
-            style={{ backgroundColor: isLight ? '#f8fafc' : '#0b1120' }}
+        <canvas
+          ref={canvasRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={handleCanvasClick}
+          onWheel={handleWheel}
+          className="w-full h-full block cursor-grab active:cursor-grabbing"
+        />
+
+        {/* FLOATING NAVIGATION (ZOOM, GPS) */}
+        <div className="absolute bottom-6 right-3 sm:right-6 z-20 flex flex-col gap-2">
+          <button
+            onClick={handleZoomIn}
+            className={`w-9 h-9 sm:w-10 sm:h-10 ${
+              isLight
+                ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
+                : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
+            } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
+            title="Perbesar Orbit"
           >
-            <svg
-              id="treeCanvas"
-              className="w-full h-full block"
-              style={{ background: isLight ? '#f8fafc' : '#0b1120' }}
-            >
-              <g transform={`translate(${svgCamera.x}, ${svgCamera.y}) scale(${svgCamera.zoom})`}>
-                {/* 1. LINES GROUP */}
-                <g id="linesGroup">
-                  {renderedConnections}
-                </g>
-
-                {/* 2. NODES GROUP */}
-                <g id="nodesGroup">
-                  {renderedNodes}
-                </g>
-              </g>
-            </svg>
-
-            {/* Info Legend Badge di pojok kiri atas */}
-            <div className={`absolute top-3 left-3 z-10 px-3 py-2 rounded-xl border backdrop-blur-md shadow-md pointer-events-none text-xs ${
-              isLight ? 'bg-white/95 border-slate-200 text-slate-700' : 'bg-slate-900/95 border-slate-800 text-slate-200'
-            }`}>
-              <div className="flex items-center gap-2 font-mono font-bold text-[11px] flex-wrap">
-                <span className="text-amber-500 font-extrabold">[Universal ID]</span>
-                <span>• Struktur: <span className="uppercase text-emerald-400 font-bold">{lineageStructureMode}</span></span>
-                <span>• Anak (1-7+): <span className="uppercase text-sky-400 font-bold">{siblingCircuitMode === 'paralel_seri' ? 'PARALEL / SERI' : siblingCircuitMode}</span></span>
-                <span className="text-[10px] text-slate-400">({lineStylePattern})</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-1 flex-wrap">
-                <span className="font-semibold text-slate-300">5 Generasi:</span>
-                <span className="text-orange-400 font-bold">0. Uyut</span>
-                <span>➔</span>
-                <span className="text-purple-400 font-bold">1. Kakek</span>
-                <span>➔</span>
-                <span className="text-blue-400 font-bold">2. Ayah</span>
-                <span>➔</span>
-                <span className="text-emerald-400 font-bold">3. Anak (1..7+)</span>
-                <span>➔</span>
-                <span className="text-cyan-400 font-bold">4. Cucu</span>
-              </div>
-            </div>
-
-            {/* FLOATING NAVIGATION (ZOOM, GPS, RESET) KHUSUS SVG */}
-            <div className="absolute bottom-6 right-3 sm:right-6 z-20 flex flex-col gap-2">
-              <button
-                onClick={handleSvgZoomIn}
-                className={`w-9 h-9 sm:w-10 sm:h-10 ${
-                  isLight
-                    ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
-                    : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
-                } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
-                title="Perbesar Tampilan"
-              >
-                +
-              </button>
-              <button
-                onClick={handleSvgZoomOut}
-                className={`w-9 h-9 sm:w-10 sm:h-10 ${
-                  isLight
-                    ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
-                    : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
-                } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
-                title="Perkecil Tampilan"
-              >
-                -
-              </button>
-              <button
-                onClick={handleSvgCenter}
-                className="h-9 sm:h-10 px-2.5 sm:px-3 bg-emerald-600 border border-emerald-400/30 rounded-xl flex items-center justify-center text-[11px] font-bold shadow-lg hover:bg-emerald-500 active:scale-95 transition gap-1.5 text-slate-950"
-                title="Fokus ke User [0.1.1.1] / Akar [0]"
-              >
-                <Crosshair className="w-4 h-4" />
-                <span>Fokus User</span>
-              </button>
-              <button
-                onClick={handleSvgReset}
-                className={`w-9 h-9 sm:w-10 sm:h-10 ${
-                  isLight
-                    ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
-                    : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
-                } rounded-xl flex items-center justify-center text-xs font-bold active:scale-95 transition`}
-                title="Reset Posisi Kamera"
-              >
-                <RotateCcw className="w-4 h-4 text-sky-400" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <canvas
-              ref={canvasRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onClick={handleCanvasClick}
-              onWheel={handleWheel}
-              className="w-full h-full block cursor-grab active:cursor-grabbing"
-            />
-
-            {/* FLOATING NAVIGATION (ZOOM, GPS) KHUSUS CANVAS */}
-            <div className="absolute bottom-6 right-3 sm:right-6 z-20 flex flex-col gap-2">
-              <button
-                onClick={handleZoomIn}
-                className={`w-9 h-9 sm:w-10 sm:h-10 ${
-                  isLight
-                    ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
-                    : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
-                } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
-                title="Perbesar Orbit"
-              >
-                +
-              </button>
-              <button
-                onClick={handleZoomOut}
-                className={`w-9 h-9 sm:w-10 sm:h-10 ${
-                  isLight
-                    ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
-                    : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
-                } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
-                title="Perkecil Orbit"
-              >
-                -
-              </button>
-              <button
-                onClick={handleGpsCenter}
-                className="h-9 sm:h-10 px-2.5 sm:px-3 bg-emerald-600 border border-emerald-400/30 rounded-xl flex items-center justify-center text-[11px] font-bold shadow-lg hover:bg-emerald-500 active:scale-95 transition gap-1.5 text-slate-950"
-                title="Fokus GPS ke User (Orbit 3)"
-              >
-                <Crosshair className="w-4 h-4" />
-                <span>GPS Center</span>
-              </button>
-            </div>
-          </>
-        )}
+            +
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className={`w-9 h-9 sm:w-10 sm:h-10 ${
+              isLight
+                ? 'bg-white/95 border border-slate-300 text-slate-800 shadow-md hover:bg-slate-100'
+                : 'bg-slate-800/90 border border-slate-700 text-white shadow-lg hover:bg-slate-700'
+            } rounded-xl flex items-center justify-center text-lg font-bold active:scale-95 transition`}
+            title="Perkecil Orbit"
+          >
+            -
+          </button>
+          <button
+            onClick={handleGpsCenter}
+            className="h-9 sm:h-10 px-2.5 sm:px-3 bg-emerald-600 border border-emerald-400/30 rounded-xl flex items-center justify-center text-[11px] font-bold shadow-lg hover:bg-emerald-500 active:scale-95 transition gap-1.5 text-slate-950"
+            title="Fokus GPS ke User (Orbit 3)"
+          >
+            <Crosshair className="w-4 h-4" />
+            <span>GPS Center</span>
+          </button>
+        </div>
       </main>
 
       {/* ------------------------------------------------------------- */}

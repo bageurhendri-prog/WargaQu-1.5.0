@@ -39,9 +39,11 @@ import {
   Compass,
   Edit3,
   Trash2,
-  Baby
+  Baby,
+  Grid
 } from 'lucide-react';
 import { OrbitQuView, OrbitNode, OrbitTreeData, CLEAN_REAL_TREE_DATA } from './OrbitQuView';
+import { GridCanvasEngine } from './GridCanvasEngine';
 
 interface LeluhurQuViewProps {
   onBackToWarga: () => void;
@@ -264,8 +266,8 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
   onBackToWarga,
   showNotification
 }) => {
-  // Navigation Tabs: Silsilah | OrbitQu | Medsos | Doa Malam Jumat | Arsip & Ekspor
-  const [activeTab, setActiveTab] = useState<'silsilah' | 'orbitqu' | 'medsos' | 'doa' | 'arsip'>('silsilah');
+  // Navigation Tabs: Silsilah | OrbitQu / Pohon | Grid Canvas | Medsos | Doa Malam Jumat | Arsip & Ekspor
+  const [activeTab, setActiveTab] = useState<'silsilah' | 'orbitqu' | 'gridcanvas' | 'medsos' | 'doa' | 'arsip'>('silsilah');
   const [activeMedsosTrah, setActiveMedsosTrah] = useState<'ayah' | 'ibu' | 'ayah_pasangan' | 'ibu_pasangan'>('ayah');
 
   // Unified OrbitQu Tree Data (Single Source of Truth)
@@ -780,69 +782,6 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
     });
   }, [members, treeFilter, generationFilter, searchQuery, familyTree]);
 
-  // Active User Node (Hendriana) directly from OrbitQu Single Source of Truth
-  const userNode = useMemo(() => {
-    return familyTree.nodes.find(n => n.isUser || n.id === 'user_node') || familyTree.nodes.find(n => n.gen === 0 && n.quadrant === 'Q1') || familyTree.nodes[0];
-  }, [familyTree]);
-
-  const userMember = useMemo(() => {
-    return members.find(m => m.isUser || m.id === 'user_node') || members[0];
-  }, [members]);
-
-  // Lineage Links derived from OrbitQu nodes
-  const userFather = useMemo(() => {
-    return familyTree.nodes.find(n => n.id === userNode?.parentId) || familyTree.nodes.find(n => n.id === 'ayah_2');
-  }, [familyTree, userNode]);
-
-  const userKakek = useMemo(() => {
-    return familyTree.nodes.find(n => n.id === userFather?.parentId) || familyTree.nodes.find(n => n.id === 'kakek_2');
-  }, [familyTree, userFather]);
-
-  const userUyut = useMemo(() => {
-    return familyTree.nodes.find(n => n.id === userKakek?.parentId) || familyTree.nodes.find(n => n.gen === -3 && n.quadrant === 'Q1') || familyTree.nodes.find(n => n.id === 'uyut_1');
-  }, [familyTree, userKakek]);
-
-  const userMother = useMemo(() => {
-    return familyTree.nodes.find(n => (n.quadrant === 'Q2' && n.gen === -1 && n.gender === 'P')) || familyTree.nodes.find(n => n.id === 'q2_ibu');
-  }, [familyTree]);
-
-  const userMotherUyut = useMemo(() => {
-    return familyTree.nodes.find(n => (n.quadrant === 'Q2' && n.gen === -3)) || familyTree.nodes.find(n => n.id === 'q2_uyut');
-  }, [familyTree]);
-
-  const userSiblings = useMemo(() => {
-    if (userFather?.id) {
-      return familyTree.nodes.filter(n => n.parentId === userFather.id && n.gen === 0);
-    }
-    return familyTree.nodes.filter(n => n.gen === 0 && n.quadrant === 'Q1');
-  }, [familyTree, userFather]);
-
-  const userChildren = useMemo(() => {
-    return familyTree.nodes.filter(n => n.parentId === userNode?.id);
-  }, [familyTree, userNode]);
-
-  const userFatherMertua = useMemo(() => {
-    return familyTree.nodes.find(n => n.id === 'q3_ayah_mertua' || (n.quadrant === 'Q3' && n.gen === -1));
-  }, [familyTree]);
-
-  const userMotherMertua = useMemo(() => {
-    return familyTree.nodes.find(n => n.id === 'q4_ibu_mertua' || (n.quadrant === 'Q4' && n.gen === -1));
-  }, [familyTree]);
-
-  // Clean user display name & initials
-  const userDisplayName = useMemo(() => {
-    if (!userNode?.name) return 'Hendriana';
-    return userNode.name.replace(/\(.*?\)/, '').trim() || 'Hendriana';
-  }, [userNode]);
-
-  const userInitials = useMemo(() => {
-    const parts = userDisplayName.split(' ').filter(Boolean);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return userDisplayName.slice(0, 2).toUpperCase() || 'HB';
-  }, [userDisplayName]);
-
   return (
     <div className={`w-full h-full ${theme === 'dark' ? 'bg-[#070b14] text-slate-100' : 'bg-[#f0fdf4] text-slate-800'} font-sans antialiased flex flex-col relative select-none overflow-hidden transition-colors duration-200`}>
       {activeTab === 'orbitqu' ? (
@@ -866,6 +805,17 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
               }
               showNotification(`Membuka profil ${name} di tab Silsilah`);
             }}
+            showNotification={showNotification}
+          />
+        </div>
+      ) : activeTab === 'gridcanvas' ? (
+        <div className="flex-1 w-full h-full relative overflow-hidden pb-14">
+          <GridCanvasEngine
+            familyTree={familyTree}
+            onUpdateFamilyTree={setFamilyTree}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onBackToLeluhurQu={() => setActiveTab('silsilah')}
             showNotification={showNotification}
           />
         </div>
@@ -914,10 +864,18 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
           <button
             onClick={() => setActiveTab('orbitqu')}
             className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-[#5eead4] border border-emerald-400/50 text-[11px] font-bold px-2 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
-            title="Buka Mode Orbit Silsilah Tata Surya"
+            title="Buka Visualisasi Silsilah (OrbitQu & PohonQu)"
           >
             <Compass className="w-3.5 h-3.5 text-[#5eead4]" />
-            <span>OrbitQu</span>
+            <span>Orbit &amp; Pohon</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('gridcanvas')}
+            className="bg-emerald-950/40 hover:bg-emerald-950/60 active:scale-95 text-[#5eead4] border border-emerald-400/50 text-[11px] font-bold px-2 py-1.5 rounded-lg flex items-center space-x-1 transition shadow-xs"
+            title="Buka LeluhurQu - Grid Canvas Engine (Spatial Matrix Zero Collision & A0-A4)"
+          >
+            <Grid className="w-3.5 h-3.5 text-[#5eead4]" />
+            <span>Grid Canvas</span>
           </button>
           <button
             onClick={() => setShowScanKKModal(true)}
@@ -943,222 +901,50 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
         {/* TAB 1: POHON SILSILAH INTERAKTIF (TREE VIEW & MULTI-SPOUSE) */}
         {activeTab === 'silsilah' && (
           <div className="space-y-3.5 animate-in fade-in duration-200">
-            {/* KARTU PROFIL UTAMA (BERDASARKAN DATA REAL ORBITQU & SINKRON LANGSUNG) */}
-            <section className={`rounded-2xl p-4 shadow-lg border relative overflow-hidden transition-all duration-200 ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/90 border-emerald-500/40 text-slate-100 shadow-emerald-950/40'
-                : 'bg-gradient-to-br from-[#064e3b] via-[#047857] to-[#065f46] text-white border-emerald-400/40 shadow-emerald-900/20'
-            }`}>
-              {/* Glow Accent Circle Background */}
-              <div className="absolute -right-10 -bottom-10 w-44 h-44 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none"></div>
-
-              {/* Header User Identity */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-500/30 relative z-10">
+            {/* KARTU PROFIL UTAMA (PRIVACY-FIRST, NIK DISEMBUNYIKAN) */}
+            <section className="bg-gradient-to-br from-[#064e3b] via-[#047857] to-[#065f46] rounded-2xl p-4 text-white shadow-md border border-emerald-400/30 relative overflow-hidden">
+              <div className="flex items-center justify-between pb-3 border-b border-emerald-500/40">
                 <div className="flex items-center space-x-3">
-                  <div className="relative">
-                    <div className="w-14 h-14 bg-emerald-800 rounded-2xl flex items-center justify-center text-xl font-black border-2 border-[#5eead4] shadow-md text-white shrink-0">
-                      {userInitials}
-                    </div>
-                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-900 flex items-center justify-center text-[8px] text-slate-950 font-bold" title="Poros Aktif">
-                      🪐
-                    </span>
+                  <div className="w-13 h-13 bg-emerald-800 rounded-full flex items-center justify-center text-lg font-bold border-2 border-[#5eead4] shadow text-white shrink-0">
+                    HB
                   </div>
-
                   <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h2 className="font-extrabold text-lg tracking-wide leading-tight text-white drop-shadow-xs">
-                        {userDisplayName}
-                      </h2>
-                      <span className="text-[10px] bg-emerald-950/70 text-[#5eead4] border border-emerald-400/40 px-2 py-0.5 rounded-full font-bold">
-                        {userMember?.nickname || '"Bageur"'}
-                      </span>
-                      <span className="text-[10px] bg-sky-950/70 text-sky-300 border border-sky-400/40 px-2 py-0.5 rounded-full font-mono font-bold">
-                        Poros Orbit 3
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="font-bold text-base text-white">Hendriana</h2>
+                      <span className="text-[10px] bg-emerald-950/60 text-[#5eead4] px-1.5 py-0.2 rounded font-medium">
+                        "Bageur"
                       </span>
                     </div>
-
-                    <p className="text-xs text-emerald-200/90 font-mono mt-0.5">
-                      ID: HQ-2026-001 • Generasi Ke-4 (Gen 0)
-                    </p>
-
-                    <p className="text-[11px] text-emerald-100 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3.5 h-3.5 text-[#5eead4] shrink-0" />
-                      <span>{userNode.origin || 'Bandung'} • Nanggerang Indah Residence, Blok A No. 12</span>
+                    <p className="text-xs text-emerald-200 font-mono">ID: HQ-2026-001</p>
+                    <p className="text-[10px] text-emerald-100 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3 text-[#5eead4]" />
+                      Nanggerang Indah Residence, Blok A No. 12
                     </p>
                   </div>
                 </div>
+              </div>
 
-                {/* Quick Action Buttons on Card */}
-                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                  <button
-                    onClick={() => handleOpenInOrbit(userNode.id)}
-                    className="bg-emerald-950/80 hover:bg-emerald-900 text-[#5eead4] border border-emerald-400/50 hover:border-[#5eead4] px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-xs"
-                    title="Sorot posisi Hendriana di Tata Surya OrbitQu"
-                  >
-                    <Compass className="w-3.5 h-3.5 text-[#5eead4]" />
-                    <span>Sorot OrbitQu</span>
-                  </button>
-                  <button
-                    onClick={() => handleOpenEditMember(userMember || userNode)}
-                    className="bg-white/15 hover:bg-white/25 text-white border border-white/30 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-xs"
-                    title="Edit Profil Hendriana"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-white" />
-                    <span>Edit Data</span>
-                  </button>
+              {/* Trah 2 Jalur Grid */}
+              <div className="grid grid-cols-2 gap-2 pt-2.5 text-xs">
+                <div className="bg-emerald-950/60 p-2 rounded-xl text-center border border-emerald-500/30">
+                  <span className="text-emerald-300 block text-[10px] font-medium">Trah Ayah (Paternal)</span>
+                  <span className="font-bold text-white text-[11px]">Trah Cilimus, Kuningan</span>
+                  <span className="text-[9px] text-emerald-200 block mt-0.5 font-mono">Buyut Kyai Abdul Ghani</span>
+                </div>
+                <div className="bg-emerald-950/60 p-2 rounded-xl text-center border border-emerald-500/30">
+                  <span className="text-emerald-300 block text-[10px] font-medium">Trah Ibu (Maternal)</span>
+                  <span className="font-bold text-white text-[11px]">Trah Dramaga, Bogor</span>
+                  <span className="text-[9px] text-emerald-200 block mt-0.5 font-mono">Buyut H. Hasan Sulaeman</span>
                 </div>
               </div>
 
-              {/* Baris Inti: Pasangan Sah & Keturunan Langsung (Sesuai Data OrbitQu) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2.5 relative z-10">
-                {/* 1. Pasangan Hidup */}
-                <div
-                  onClick={() => {
-                    const spouseM = members.find(m => m.name.toLowerCase().includes((userNode.spouseName || 'siti nurhaliza').toLowerCase()));
-                    if (spouseM) setSelectedMember(spouseM);
-                  }}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition flex items-center justify-between"
-                  title="Klik untuk melihat detail pasangan"
-                >
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <span className="w-7 h-7 rounded-lg bg-rose-900/60 border border-rose-400/40 flex items-center justify-center text-xs text-rose-300 font-bold shrink-0">
-                      💍
-                    </span>
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-emerald-300 block font-medium">Istri Sah (Pasangan)</span>
-                      <span className="font-bold text-white text-xs truncate block">
-                        {userNode.spouseName || 'Siti Nurhaliza'}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[9px] bg-rose-950 text-rose-300 border border-rose-800/60 px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ml-1">
-                    Berdampingan
-                  </span>
-                </div>
-
-                {/* 2. Posisi Saudara Kandung */}
-                <div
-                  onClick={() => {
-                    setGenerationFilter('0');
-                    setTreeFilter('inti');
-                  }}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition flex items-center justify-between"
-                  title="Filter saudara kandung di Silsilah"
-                >
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <span className="w-7 h-7 rounded-lg bg-sky-900/60 border border-sky-400/40 flex items-center justify-center text-xs text-sky-300 font-bold shrink-0">
-                      👨‍👩‍👧‍👦
-                    </span>
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-emerald-300 block font-medium">Urutan Saudara Kandung</span>
-                      <span className="font-bold text-white text-xs truncate block">
-                        {userNode.order || 'Anak ke-3'} dari {userSiblings.length || 6} Bersaudara
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[9px] bg-sky-950 text-sky-300 border border-sky-800/60 px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ml-1">
-                    Poros Tengah
-                  </span>
-                </div>
-
-                {/* 3. Anak Kandung (Orbit 4) */}
-                <div
-                  onClick={() => {
-                    setGenerationFilter('1');
-                  }}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition flex items-center justify-between"
-                  title="Filter anak kandung di Silsilah"
-                >
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <span className="w-7 h-7 rounded-lg bg-amber-900/60 border border-amber-400/40 flex items-center justify-center text-xs text-amber-300 font-bold shrink-0">
-                      👶
-                    </span>
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-emerald-300 block font-medium">Keturunan (Orbit 4)</span>
-                      <span className="font-bold text-white text-xs truncate block">
-                        {userChildren.length} Anak ({userChildren.map(c => c.name.replace(/\(.*?\)/, '').trim()).join(', ') || '3 Anak'})
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[9px] bg-amber-950 text-amber-300 border border-amber-800/60 px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ml-1">
-                    Gen +1
-                  </span>
-                </div>
-              </div>
-
-              {/* 4 Pilar Trah Nasab (Sesuai 4 Kuadran OrbitQu) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2.5 text-xs relative z-10">
-                {/* Kuadran 1: Trah Ayah (Kuningan / Cianjur & Bandung) */}
-                <div
-                  onClick={() => setTreeFilter('ayah')}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition"
-                  title="Lihat Trah Ayah"
-                >
-                  <span className="text-[#5eead4] block text-[10px] font-bold">1. Trah Ayah (Q1)</span>
-                  <span className="font-bold text-white text-[11px] block truncate">
-                    {userFather?.name || 'Ayah No. 2 (Karta)'}
-                  </span>
-                  <span className="text-[9px] text-emerald-200 block mt-0.5 font-mono truncate">
-                    Uyut: {userUyut?.name?.replace(/\(.*?\)/, '').trim() || 'Kyai Abdul Ghani'}
-                  </span>
-                </div>
-
-                {/* Kuadran 2: Trah Ibu (Dramaga Bogor) */}
-                <div
-                  onClick={() => setTreeFilter('ibu')}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition"
-                  title="Lihat Trah Ibu"
-                >
-                  <span className="text-emerald-300 block text-[10px] font-bold">2. Trah Ibu (Q2)</span>
-                  <span className="font-bold text-white text-[11px] block truncate">
-                    {userMother?.name || 'Ibu Kandung User'}
-                  </span>
-                  <span className="text-[9px] text-emerald-200 block mt-0.5 font-mono truncate">
-                    Uyut: {userMotherUyut?.name?.replace(/\(.*?\)/, '').trim() || 'Uyut Maternal Bogor'}
-                  </span>
-                </div>
-
-                {/* Kuadran 3: Trah Ayah Pasangan (Besan Bogor) */}
-                <div
-                  onClick={() => setTreeFilter('ayah_pasangan')}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition"
-                  title="Lihat Trah Ayah Pasangan"
-                >
-                  <span className="text-rose-300 block text-[10px] font-bold">3. Ayah Pasangan (Q3)</span>
-                  <span className="font-bold text-white text-[11px] block truncate">
-                    {userFatherMertua?.name?.replace(/\(.*?\)/, '').trim() || 'H. Suryana'}
-                  </span>
-                  <span className="text-[9px] text-rose-200/80 block mt-0.5 font-mono truncate">
-                    Mertua: Siti Nurhaliza
-                  </span>
-                </div>
-
-                {/* Kuadran 4: Trah Ibu Pasangan (Besan Bogor) */}
-                <div
-                  onClick={() => setTreeFilter('ibu_pasangan')}
-                  className="bg-emerald-950/60 hover:bg-emerald-950/80 cursor-pointer p-2 rounded-xl border border-emerald-500/30 transition"
-                  title="Lihat Trah Ibu Pasangan"
-                >
-                  <span className="text-purple-300 block text-[10px] font-bold">4. Ibu Pasangan (Q4)</span>
-                  <span className="font-bold text-white text-[11px] block truncate">
-                    {userMotherMertua?.name?.replace(/\(.*?\)/, '').trim() || 'Hj. Maryam'}
-                  </span>
-                  <span className="text-[9px] text-purple-200/80 block mt-0.5 font-mono truncate">
-                    Mertua: Siti Nurhaliza
-                  </span>
-                </div>
-              </div>
-
-              {/* Privacy-First & OrbitQu Synchronization Badge */}
-              <div className="mt-2.5 flex items-center justify-between text-[10px] text-emerald-200/90 bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-500/20 relative z-10">
+              {/* Privacy-First Badge */}
+              <div className="mt-2.5 flex items-center justify-between text-[10px] text-emerald-200/90 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                 <span className="flex items-center gap-1">
                   <Shield className="w-3 h-3 text-[#5eead4]" />
                   <span>Privasi Aman: NIK Tersembunyi Otomatis</span>
                 </span>
-                <span className="font-mono text-[#5eead4] font-bold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#5eead4]" />
-                  <span>Sinkron Real-Time OrbitQu</span>
-                </span>
+                <span className="font-mono text-[#5eead4] font-bold">Offline-First</span>
               </div>
             </section>
 
@@ -1990,10 +1776,24 @@ export const LeluhurQuView: React.FC<LeluhurQuViewProps> = ({
             <Compass className={`w-5 h-5 ${activeTab === 'orbitqu' ? 'text-emerald-400' : 'text-slate-400'}`} />
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
           </div>
-          <span className="text-[10px]">OrbitQu</span>
+          <span className="text-[10px]">Orbit &amp; Pohon</span>
         </button>
 
-        {/* Tab 3: Medsos Trah */}
+        {/* Tab 3: Grid Canvas Engine (Spatial Matrix Zero Collision) */}
+        <button
+          onClick={() => setActiveTab('gridcanvas')}
+          className={`flex flex-col items-center gap-1 transition active:scale-95 ${
+            activeTab === 'gridcanvas'
+              ? (theme === 'dark' ? 'text-teal-400 font-bold' : 'text-teal-700 font-bold')
+              : (theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-slate-400 hover:text-emerald-700 font-medium')
+          }`}
+          title="Buka LeluhurQu - Grid Canvas Engine"
+        >
+          <Grid className={`w-5 h-5 ${activeTab === 'gridcanvas' ? (theme === 'dark' ? 'text-teal-400' : 'text-teal-700') : 'text-slate-400'}`} />
+          <span className="text-[10px]">Grid Canvas</span>
+        </button>
+
+        {/* Tab 4: Medsos Trah */}
         <button
           onClick={() => setActiveTab('medsos')}
           className={`flex flex-col items-center gap-1 transition active:scale-95 ${
